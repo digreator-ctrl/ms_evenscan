@@ -15,9 +15,25 @@ import Layout from '../layouts/Layout.astro';
         </p>
       </div>
 
+      <!-- Floating Toast / Notification Popup (Auto-Dismiss) -->
+      <div
+        id="toastAlert"
+        class="fixed top-6 left-1/2 -translate-x-1/2 z-50 flex items-center gap-3 bg-slate-900/95 text-white px-5 py-3.5 rounded-2xl shadow-2xl border border-slate-700/80 backdrop-blur-md transition-all duration-300 opacity-0 pointer-events-none -translate-y-4 max-w-sm w-[90%]"
+        role="alert"
+        aria-live="assertive"
+      >
+        <div class="w-8 h-8 rounded-xl bg-amber-500/20 text-amber-400 flex items-center justify-center shrink-0 text-base font-bold">
+          ⚠️
+        </div>
+        <div class="flex-1">
+          <p class="text-xs font-bold text-white" id="toastTitle">Kolom Belum Terisi</p>
+          <p class="text-[11px] text-slate-300 mt-0.5 leading-snug" id="toastMessage">Harap masukkan nomor WhatsApp Anda terlebih dahulu.</p>
+        </div>
+      </div>
+
       <!-- Search Card -->
       <div class="bg-white rounded-2xl shadow-sm border border-slate-200/80 p-5 sm:p-6 mb-6">
-        <form id="formStatus" class="flex flex-col sm:flex-row gap-2.5">
+        <form id="formStatus" novalidate class="flex flex-col sm:flex-row gap-2.5">
           <input
             type="tel"
             id="inputWA"
@@ -138,117 +154,160 @@ import Layout from '../layouts/Layout.astro';
   </section>
 
   <script>
-    const API_URL = import.meta.env.PUBLIC_API_URL || 'http://localhost:8787';
+    function initStatusPage() {
+      const API_URL = import.meta.env.PUBLIC_API_URL || 'http://localhost:8787';
 
-    const form = document.getElementById('formStatus') as HTMLFormElement;
-    const inputWA = document.getElementById('inputWA') as HTMLInputElement;
-    const loading = document.getElementById('loading')!;
+      const form = document.getElementById('formStatus') as HTMLFormElement | null;
+      const inputWA = document.getElementById('inputWA') as HTMLInputElement | null;
+      const loading = document.getElementById('loading');
+      const toast = document.getElementById('toastAlert');
+      const toastTitle = document.getElementById('toastTitle');
+      const toastMessage = document.getElementById('toastMessage');
 
-    const resultMenunggu = document.getElementById('resultMenunggu')!;
-    const resultDikonfirmasi = document.getElementById('resultDikonfirmasi')!;
-    const resultDitolak = document.getElementById('resultDitolak')!;
-    const resultHadir = document.getElementById('resultHadir')!;
-    const resultNotFound = document.getElementById('resultNotFound')!;
+      const resultMenunggu = document.getElementById('resultMenunggu');
+      const resultDikonfirmasi = document.getElementById('resultDikonfirmasi');
+      const resultDitolak = document.getElementById('resultDitolak');
+      const resultHadir = document.getElementById('resultHadir');
+      const resultNotFound = document.getElementById('resultNotFound');
 
-    const namaMenunggu = document.getElementById('namaMenunggu')!;
-    const pesertaNama = document.getElementById('pesertaNama')!;
-    const pesertaInstansi = document.getElementById('pesertaInstansi')!;
-    const qrImage = document.getElementById('qrImage') as HTMLImageElement;
-    const qrTokenDisplay = document.getElementById('qrTokenDisplay')!;
-    const namaHadir = document.getElementById('namaHadir')!;
-    const alasanTolak = document.getElementById('alasanTolak')!;
-    const downloadQR = document.getElementById('downloadQR')!;
+      const namaMenunggu = document.getElementById('namaMenunggu');
+      const pesertaNama = document.getElementById('pesertaNama');
+      const pesertaInstansi = document.getElementById('pesertaInstansi');
+      const qrImage = document.getElementById('qrImage') as HTMLImageElement | null;
+      const qrTokenDisplay = document.getElementById('qrTokenDisplay');
+      const namaHadir = document.getElementById('namaHadir');
+      const alasanTolak = document.getElementById('alasanTolak');
+      const downloadQR = document.getElementById('downloadQR');
 
-    function hideAll() {
-      [resultMenunggu, resultDikonfirmasi, resultDitolak, resultHadir, resultNotFound].forEach((el) =>
-        el.classList.add('hidden')
-      );
-    }
+      if (!form || !inputWA || !loading) return;
 
-    async function checkStatus(waNumber: string) {
-      if (!waNumber) return;
-      hideAll();
-      loading.classList.remove('hidden');
+      let toastTimer: ReturnType<typeof setTimeout> | null = null;
+      function showToast(message = 'Harap masukkan nomor WhatsApp Anda terlebih dahulu.', title = 'Kolom Belum Terisi') {
+        if (!toast) return;
+        if (toastTitle) toastTitle.textContent = title;
+        if (toastMessage) toastMessage.textContent = message;
 
-      try {
-        const res = await fetch(`${API_URL}/api/peserta/status?wa=${encodeURIComponent(waNumber)}`);
-        loading.classList.add('hidden');
+        // Tampilkan pop up / modal notifikasi
+        toast.classList.remove('opacity-0', 'pointer-events-none', '-translate-y-4');
+        toast.classList.add('opacity-100', 'translate-y-0');
 
-        if (res.status === 404) {
-          resultNotFound.classList.remove('hidden');
+        // Highlight input
+        if (inputWA) {
+          inputWA.classList.add('border-amber-500', 'ring-2', 'ring-amber-500/30');
+          inputWA.focus();
+        }
+
+        // Hapus timer sebelumnya jika tombol diklik berulang kali
+        if (toastTimer) clearTimeout(toastTimer);
+
+        // Pop up menghilang dengan sendirinya setelah 3 detik
+        toastTimer = setTimeout(() => {
+          toast.classList.remove('opacity-100', 'translate-y-0');
+          toast.classList.add('opacity-0', 'pointer-events-none', '-translate-y-4');
+          if (inputWA) {
+            inputWA.classList.remove('border-amber-500', 'ring-2', 'ring-amber-500/30');
+          }
+        }, 3000);
+      }
+
+      function hideAll() {
+        [resultMenunggu, resultDikonfirmasi, resultDitolak, resultHadir, resultNotFound].forEach((el) =>
+          el?.classList.add('hidden')
+        );
+      }
+
+      async function checkStatus(waNumber: string) {
+        if (!waNumber) return;
+        hideAll();
+        loading?.classList.remove('hidden');
+
+        try {
+          const res = await fetch(`${API_URL}/api/peserta/status?wa=${encodeURIComponent(waNumber)}`);
+          loading?.classList.add('hidden');
+
+          if (res.status === 404) {
+            resultNotFound?.classList.remove('hidden');
+            return;
+          }
+
+          if (!res.ok) {
+            throw new Error('Gagal memeriksa status');
+          }
+
+          const data = await res.json();
+
+          switch (data.status) {
+            case 'menunggu':
+              if (namaMenunggu) namaMenunggu.textContent = data.nama;
+              resultMenunggu?.classList.remove('hidden');
+              break;
+            case 'dikonfirmasi':
+              if (pesertaNama) pesertaNama.textContent = data.nama;
+              if (pesertaInstansi) pesertaInstansi.textContent = data.instansi ? `Asal: ${data.instansi}` : '';
+              if (qrImage) qrImage.src = `${API_URL}/api/peserta/qr/${data.qr_token}`;
+              if (qrTokenDisplay) qrTokenDisplay.textContent = `Token: ${data.qr_token}`;
+              resultDikonfirmasi?.classList.remove('hidden');
+              break;
+            case 'hadir':
+              if (namaHadir) namaHadir.textContent = data.nama;
+              resultHadir?.classList.remove('hidden');
+              break;
+            case 'ditolak':
+              if (alasanTolak) alasanTolak.textContent = data.alasan_tolak ? `Catatan: ${data.alasan_tolak}` : 'Tidak memenuhi kualifikasi';
+              resultDitolak?.classList.remove('hidden');
+              break;
+            default:
+              resultNotFound?.classList.remove('hidden');
+          }
+        } catch (err) {
+          loading?.classList.add('hidden');
+          resultNotFound?.classList.remove('hidden');
+        }
+      }
+
+      form.addEventListener('submit', (e) => {
+        e.preventDefault();
+        const val = inputWA.value.trim();
+        if (!val) {
+          showToast('Harap masukkan nomor WhatsApp yang terdaftar untuk memeriksa status.', 'Nomor WhatsApp Wajib Diisi');
           return;
         }
 
-        if (!res.ok) {
-          throw new Error('Gagal memeriksa status');
-        }
-
-        const data = await res.json();
-
-        switch (data.status) {
-          case 'menunggu':
-            namaMenunggu.textContent = data.nama;
-            resultMenunggu.classList.remove('hidden');
-            break;
-          case 'dikonfirmasi':
-            pesertaNama.textContent = data.nama;
-            pesertaInstansi.textContent = data.instansi ? `Asal: ${data.instansi}` : '';
-            qrImage.src = `${API_URL}/api/peserta/qr/${data.qr_token}`;
-            qrTokenDisplay.textContent = `Token: ${data.qr_token}`;
-            resultDikonfirmasi.classList.remove('hidden');
-            break;
-          case 'hadir':
-            namaHadir.textContent = data.nama;
-            resultHadir.classList.remove('hidden');
-            break;
-          case 'ditolak':
-            alasanTolak.textContent = data.alasan_tolak ? `Catatan: ${data.alasan_tolak}` : 'Tidak memenuhi kualifikasi';
-            resultDitolak.classList.remove('hidden');
-            break;
-          default:
-            resultNotFound.classList.remove('hidden');
-        }
-      } catch (err) {
-        loading.classList.add('hidden');
-        resultNotFound.classList.remove('hidden');
-      }
-    }
-
-    form.addEventListener('submit', (e) => {
-      e.preventDefault();
-      const val = inputWA.value.trim();
-      if (val) {
         // Update URL tanpa reload
         const newUrl = new URL(window.location.href);
         newUrl.searchParams.set('wa', val);
         window.history.pushState({}, '', newUrl.toString());
         checkStatus(val);
-      }
-    });
+      });
 
-    downloadQR.addEventListener('click', async () => {
-      try {
-        const response = await fetch(qrImage.src);
-        const blob = await response.blob();
-        const url = window.URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = `tiket-qr-${pesertaNama.textContent?.replace(/\s+/g, '-').toLowerCase() || 'acara'}.png`;
-        document.body.appendChild(a);
-        a.click();
-        a.remove();
-        window.URL.revokeObjectURL(url);
-      } catch (err) {
-        window.open(qrImage.src, '_blank');
-      }
-    });
+      downloadQR?.addEventListener('click', async () => {
+        if (!qrImage) return;
+        try {
+          const response = await fetch(qrImage.src);
+          const blob = await response.blob();
+          const url = window.URL.createObjectURL(blob);
+          const a = document.createElement('a');
+          a.href = url;
+          a.download = `tiket-qr-${pesertaNama?.textContent?.replace(/\s+/g, '-').toLowerCase() || 'acara'}.png`;
+          document.body.appendChild(a);
+          a.click();
+          a.remove();
+          window.URL.revokeObjectURL(url);
+        } catch (err) {
+          window.open(qrImage.src, '_blank');
+        }
+      });
 
-    // Auto-search jika ada parameter ?wa=... di URL
-    const urlParams = new URLSearchParams(window.location.search);
-    const waParam = urlParams.get('wa');
-    if (waParam) {
-      inputWA.value = waParam;
-      checkStatus(waParam);
+      // Auto-search jika ada parameter ?wa=... di URL
+      const urlParams = new URLSearchParams(window.location.search);
+      const waParam = urlParams.get('wa');
+      if (waParam) {
+        inputWA.value = waParam;
+        checkStatus(waParam);
+      }
     }
+
+    // Jalankan baik pada load pertama maupun transisi halaman SPA Astro
+    document.addEventListener('astro:page-load', initStatusPage);
   </script>
 </Layout>

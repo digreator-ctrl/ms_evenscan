@@ -10,9 +10,9 @@ const isActive = (path: string) =>
 
 <header class="bg-white border-b border-slate-200/90 sticky top-0 z-50 shadow-xs">
   <div class="max-w-5xl mx-auto px-4 py-2.5 sm:py-3 flex flex-row justify-between items-center gap-3">
-    <!-- Brand Info -->
-    <a href="/" class="flex items-center gap-2.5 sm:gap-3 group">
-      <Logo className="w-8 h-8 sm:w-9 sm:h-9 group-hover:scale-105 transition" />
+    <!-- Brand Info (Non-clickable) -->
+    <div class="flex items-center gap-2.5 sm:gap-3 select-none cursor-default">
+      <Logo className="w-8 h-8 sm:w-9 sm:h-9" />
       <div>
         <div class="inline-block px-1.5 sm:px-2 py-0.5 bg-primary-100 text-primary-800 font-extrabold text-[9px] sm:text-[10px] tracking-wider uppercase rounded-md">
           Muslim Scene
@@ -21,24 +21,44 @@ const isActive = (path: string) =>
           EvenScan <span class="hidden sm:inline">&bull; Registrasi & Absensi</span>
         </h1>
       </div>
-    </a>
+    </div>
 
     <!-- Desktop Navigation Tabs -->
-    <nav class="hidden sm:flex items-center gap-1 text-xs">
+    <nav class="hidden sm:flex items-center gap-2 text-xs">
       <a href="/" class={isActive('/')}>Beranda</a>
       <a href="/daftar" class={isActive('/daftar')}>Daftar</a>
-      <a href="/status" class={isActive('/status')}>Cek Status</a>
-    </nav>
-
-    <!-- Mobile Quick Action (Ramping & Hemat Ruang) -->
-    <div class="flex sm:hidden items-center">
       <a
         href="/status"
-        class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-primary-50 text-primary-800 font-bold text-xs border border-primary-200/80 shadow-xs hover:bg-primary-100 transition active:scale-95"
+        class={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg font-bold text-xs transition border shadow-xs ${
+          currentPath === '/status'
+            ? 'bg-primary-700 text-white border-primary-800'
+            : 'bg-primary-50 text-primary-800 border-primary-200/80 hover:bg-primary-100'
+        }`}
       >
         <span>🔍</span>
         <span>Cek Status</span>
       </a>
+    </nav>
+
+    <!-- Mobile Quick Action Button -->
+    <div class="flex sm:hidden items-center">
+      {currentPath === '/status' ? (
+        <a
+          href="/"
+          class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-slate-100 text-slate-700 font-bold text-xs border border-slate-200/80 shadow-xs hover:bg-slate-200 transition active:scale-95"
+        >
+          <span>🏠</span>
+          <span>Beranda</span>
+        </a>
+      ) : (
+        <a
+          href="/status"
+          class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-primary-50 text-primary-800 font-bold text-xs border border-primary-200/80 shadow-xs hover:bg-primary-100 transition active:scale-95"
+        >
+          <span>🔍</span>
+          <span>Cek Status</span>
+        </a>
+      )}
     </div>
   </div>
 </header>

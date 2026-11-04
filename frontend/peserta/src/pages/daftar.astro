@@ -11,28 +11,71 @@ import Layout from '../layouts/Layout.astro';
         </span>
         <h1 class="text-3xl font-extrabold text-slate-900 tracking-tight">Formulir Peserta</h1>
         <p class="text-slate-500 text-sm mt-1 max-w-md mx-auto">
-          Lengkapi data diri Anda dan unggah bukti tangkapan layar untuk diverifikasi oleh panitia.
+          Lengkapi data diri Anda dan unggah bukti tangkapan layar akun HSI untuk diverifikasi oleh panitia.
         </p>
       </div>
 
       <!-- Form Card -->
       <form id="formDaftar" class="bg-white rounded-2xl shadow-sm border border-slate-200/80 p-6 sm:p-8 space-y-6">
-        <!-- Nama Lengkap -->
+        <!-- 1. Nama Lengkap (Minimal 3 Huruf, Indikator Merah Interaktif) -->
         <div>
           <label for="nama" class="block text-sm font-semibold text-slate-700 mb-1.5">
-            Nama Lengkap <span class="text-red-500">*</span>
+            1. Nama Lengkap <span class="text-red-500">*</span>
           </label>
           <input
             type="text"
             id="nama"
             name="nama"
             required
-            placeholder="Contoh: Muhammad Ilham Fauzan"
+            placeholder="Contoh: Abdullah Fulan"
             class="w-full border border-slate-300 rounded-xl px-4 py-3 text-sm focus:ring-2 focus:ring-primary-500/20 focus:border-primary-600 outline-none transition"
           />
+          <p id="namaError" class="hidden text-xs text-red-600 mt-1.5 flex items-center gap-1 font-medium">
+            <span>⚠️</span>
+            <span>Nama lengkap wajib minimal 3 huruf.</span>
+          </p>
         </div>
 
-        <!-- Nomor WhatsApp -->
+        <!-- 2. Ikhwan / Akhwat (Tanpa Ikon, Warna Menonjol Sesuai Tema) -->
+        <div>
+          <label class="block text-sm font-semibold text-slate-700 mb-1.5">
+            2. Ikhwan / Akhwat <span class="text-red-500">*</span>
+          </label>
+          <div class="grid grid-cols-2 gap-3">
+            <label class="cursor-pointer">
+              <input type="radio" name="jenis_kelamin" value="Ikhwan" required class="peer sr-only" />
+              <div class="flex items-center justify-center p-3.5 rounded-xl border-2 border-slate-200 bg-slate-50/70 text-slate-700 font-bold text-sm tracking-wide transition duration-150 peer-checked:border-[#07407b] peer-checked:bg-[#07407b] peer-checked:text-white peer-checked:shadow-md peer-checked:shadow-[#07407b]/25 hover:border-slate-300 hover:bg-slate-100">
+                <span>IKHWAN</span>
+              </div>
+            </label>
+            <label class="cursor-pointer">
+              <input type="radio" name="jenis_kelamin" value="Akhwat" required class="peer sr-only" />
+              <div class="flex items-center justify-center p-3.5 rounded-xl border-2 border-slate-200 bg-slate-50/70 text-slate-700 font-bold text-sm tracking-wide transition duration-150 peer-checked:border-[#07407b] peer-checked:bg-[#07407b] peer-checked:text-white peer-checked:shadow-md peer-checked:shadow-[#07407b]/25 hover:border-slate-300 hover:bg-slate-100">
+                <span>AKHWAT</span>
+              </div>
+            </label>
+          </div>
+        </div>
+
+        <!-- 3. NIP (Nomor Induk Peserta / Santri) -->
+        <div>
+          <label for="nip" class="block text-sm font-semibold text-slate-700 mb-1.5">
+            3. NIP (Contoh: ARN/ART) <span class="text-red-500">*</span>
+          </label>
+          <input
+            type="text"
+            id="nip"
+            name="nip"
+            required
+            placeholder="Contoh: ARN211-12345 atau ART211-12345"
+            class="w-full border border-slate-300 rounded-xl px-4 py-3 text-sm focus:ring-2 focus:ring-primary-500/20 focus:border-primary-600 outline-none transition uppercase font-mono tracking-wide"
+          />
+          <p class="text-xs text-slate-400 mt-1">
+            Gunakan awalan ARN untuk Ikhwan atau ART untuk Akhwat.
+          </p>
+        </div>
+
+        <!-- Nomor WhatsApp Aktif (Hanya Bisa Diinput Angka) -->
         <div>
           <label for="no_whatsapp" class="block text-sm font-semibold text-slate-700 mb-1.5">
             Nomor WhatsApp Aktif <span class="text-red-500">*</span>
@@ -42,46 +85,142 @@ import Layout from '../layouts/Layout.astro';
             id="no_whatsapp"
             name="no_whatsapp"
             required
-            placeholder="081234567890"
-            class="w-full border border-slate-300 rounded-xl px-4 py-3 text-sm focus:ring-2 focus:ring-primary-500/20 focus:border-primary-600 outline-none transition"
+            inputmode="numeric"
+            pattern="[0-9]*"
+            placeholder="Contoh: 081234567890"
+            class="w-full border border-slate-300 rounded-xl px-4 py-3 text-sm focus:ring-2 focus:ring-primary-500/20 focus:border-primary-600 outline-none transition font-mono"
           />
           <p class="text-xs text-slate-400 mt-1">
-            📱 Pastikan nomor WhatsApp aktif untuk notifikasi status & pengiriman QR kehadiran.
+            📱 Hanya angka. Wajib aktif untuk menerima notifikasi, pengiriman tiket QR, dan cek status mandiri.
           </p>
         </div>
 
-        <!-- Email -->
-        <div>
-          <label for="email" class="block text-sm font-semibold text-slate-700 mb-1.5">
-            Alamat Email <span class="text-slate-400 font-normal">(Opsional)</span>
-          </label>
-          <input
-            type="email"
-            id="email"
-            name="email"
-            placeholder="nama@email.com"
-            class="w-full border border-slate-300 rounded-xl px-4 py-3 text-sm focus:ring-2 focus:ring-primary-500/20 focus:border-primary-600 outline-none transition"
-          />
+        <!-- 4. Domisili (Provinsi, Kota/Kabupaten, Kecamatan, Kelurahan/Desa dari API & Searchable) -->
+        <div class="space-y-3">
+          <div>
+            <label class="block text-sm font-semibold text-slate-700">
+              4. Domisili: Provinsi, Kota/Kabupaten, Kecamatan, Kelurahan/Desa <span class="text-red-500">*</span>
+            </label>
+            <p class="text-xs text-slate-400 mt-0.5">
+              Pilih dari dropdown atau ketik nama wilayah untuk pencarian cepat (diurutkan abjad).
+            </p>
+          </div>
+
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <!-- Level 1: Provinsi -->
+            <div class="relative" id="field_provinsi">
+              <label for="search_provinsi" class="block text-[11px] font-semibold text-slate-600 uppercase tracking-wider mb-1">
+                Provinsi <span class="text-red-500">*</span>
+              </label>
+              <div class="relative">
+                <input
+                  type="text"
+                  id="search_provinsi"
+                  autocomplete="off"
+                  placeholder="Ketik / pilih Provinsi..."
+                  class="w-full bg-white border border-slate-300 rounded-xl px-3.5 py-2.5 text-sm pr-9 focus:ring-2 focus:ring-primary-500/20 focus:border-primary-600 outline-none transition"
+                />
+                <div class="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-slate-400">
+                  <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
+                </div>
+              </div>
+              <ul id="list_provinsi" class="hidden absolute left-0 right-0 top-full mt-1 max-h-52 overflow-y-auto bg-white border border-slate-200 rounded-xl shadow-xl z-30 py-1 text-xs divide-y divide-slate-50">
+                <li class="p-3 text-slate-400 text-center">Memuat daftar provinsi...</li>
+              </ul>
+              <input type="hidden" id="val_provinsi_id" />
+              <input type="hidden" id="val_provinsi_name" />
+            </div>
+
+            <!-- Level 2: Kota / Kabupaten -->
+            <div class="relative" id="field_kota">
+              <label for="search_kota" class="block text-[11px] font-semibold text-slate-600 uppercase tracking-wider mb-1">
+                Kota / Kabupaten <span class="text-red-500">*</span>
+              </label>
+              <div class="relative">
+                <input
+                  type="text"
+                  id="search_kota"
+                  autocomplete="off"
+                  disabled
+                  placeholder="Pilih Provinsi terlebih dahulu"
+                  class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2.5 text-sm pr-9 focus:ring-2 focus:ring-primary-500/20 focus:border-primary-600 outline-none transition disabled:bg-slate-100 disabled:text-slate-400 disabled:cursor-not-allowed"
+                />
+                <div class="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-slate-400">
+                  <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
+                </div>
+              </div>
+              <ul id="list_kota" class="hidden absolute left-0 right-0 top-full mt-1 max-h-52 overflow-y-auto bg-white border border-slate-200 rounded-xl shadow-xl z-30 py-1 text-xs divide-y divide-slate-50"></ul>
+              <input type="hidden" id="val_kota_id" />
+              <input type="hidden" id="val_kota_name" />
+            </div>
+
+            <!-- Level 3: Kecamatan -->
+            <div class="relative" id="field_kecamatan">
+              <label for="search_kecamatan" class="block text-[11px] font-semibold text-slate-600 uppercase tracking-wider mb-1">
+                Kecamatan <span class="text-red-500">*</span>
+              </label>
+              <div class="relative">
+                <input
+                  type="text"
+                  id="search_kecamatan"
+                  autocomplete="off"
+                  disabled
+                  placeholder="Pilih Kota/Kabupaten dahulu"
+                  class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2.5 text-sm pr-9 focus:ring-2 focus:ring-primary-500/20 focus:border-primary-600 outline-none transition disabled:bg-slate-100 disabled:text-slate-400 disabled:cursor-not-allowed"
+                />
+                <div class="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-slate-400">
+                  <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
+                </div>
+              </div>
+              <ul id="list_kecamatan" class="hidden absolute left-0 right-0 top-full mt-1 max-h-52 overflow-y-auto bg-white border border-slate-200 rounded-xl shadow-xl z-30 py-1 text-xs divide-y divide-slate-50"></ul>
+              <input type="hidden" id="val_kecamatan_id" />
+              <input type="hidden" id="val_kecamatan_name" />
+            </div>
+
+            <!-- Level 4: Kelurahan / Desa -->
+            <div class="relative" id="field_desa">
+              <label for="search_desa" class="block text-[11px] font-semibold text-slate-600 uppercase tracking-wider mb-1">
+                Kelurahan / Desa <span class="text-red-500">*</span>
+              </label>
+              <div class="relative">
+                <input
+                  type="text"
+                  id="search_desa"
+                  autocomplete="off"
+                  disabled
+                  placeholder="Pilih Kecamatan dahulu"
+                  class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2.5 text-sm pr-9 focus:ring-2 focus:ring-primary-500/20 focus:border-primary-600 outline-none transition disabled:bg-slate-100 disabled:text-slate-400 disabled:cursor-not-allowed"
+                />
+                <div class="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-slate-400">
+                  <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
+                </div>
+              </div>
+              <ul id="list_desa" class="hidden absolute left-0 right-0 top-full mt-1 max-h-52 overflow-y-auto bg-white border border-slate-200 rounded-xl shadow-xl z-30 py-1 text-xs divide-y divide-slate-50"></ul>
+              <input type="hidden" id="val_desa_id" />
+              <input type="hidden" id="val_desa_name" />
+            </div>
+          </div>
         </div>
 
-        <!-- Instansi / Komunitas -->
+        <!-- 5. Alasan Mengikuti Acara -->
         <div>
-          <label for="instansi" class="block text-sm font-semibold text-slate-700 mb-1.5">
-            Instansi / Asal Komunitas <span class="text-slate-400 font-normal">(Opsional)</span>
+          <label for="alasan" class="block text-sm font-semibold text-slate-700 mb-1.5">
+            5. Mengapa Anda ingin mengikuti acara ini? (Jelaskan singkat) <span class="text-red-500">*</span>
           </label>
-          <input
-            type="text"
-            id="instansi"
-            name="instansi"
-            placeholder="Nama universitas, kantor, atau komunitas"
-            class="w-full border border-slate-300 rounded-xl px-4 py-3 text-sm focus:ring-2 focus:ring-primary-500/20 focus:border-primary-600 outline-none transition"
-          />
+          <textarea
+            id="alasan"
+            name="alasan"
+            rows="3"
+            required
+            placeholder="Tuliskan alasan atau motivasi singkat Anda mengikuti kegiatan ini..."
+            class="w-full border border-slate-300 rounded-xl px-4 py-3 text-sm focus:ring-2 focus:ring-primary-500/20 focus:border-primary-600 outline-none transition resize-y"
+          ></textarea>
         </div>
 
-        <!-- Upload Screenshot -->
+        <!-- 6. Lampirkan Foto SS Akun HSI (Kompresi Otomatis Standar Hemat Ruang) -->
         <div>
           <label class="block text-sm font-semibold text-slate-700 mb-1.5">
-            Unggah Bukti Screenshot <span class="text-red-500">*</span>
+            6. Lampirkan Foto SS Akun HSI <span class="text-red-500">*</span>
           </label>
           <div
             id="dropZone"
@@ -90,25 +229,32 @@ import Layout from '../layouts/Layout.astro';
             <div id="uploadPlaceholder" class="space-y-2">
               <div class="w-12 h-12 bg-primary-50 text-primary-600 rounded-full flex items-center justify-center mx-auto group-hover:scale-110 transition">
                 <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
                 </svg>
               </div>
               <p class="text-sm font-medium text-slate-700">
-                Klik atau seret file tangkapan layar ke sini
+                Klik atau seret file tangkapan layar akun HSI ke sini
               </p>
               <p class="text-xs text-slate-400">
-                Format JPG, PNG, atau WebP (kompresi otomatis jika gambar berukuran besar)
+                Format JPG, PNG, atau WebP &bull; <strong>Kompresi Otomatis Aktif</strong> (Standar resolusi 1280px, ukuran dioptimalkan menjadi ~150-350 KB agar storage tetap hemat).
               </p>
             </div>
 
             <!-- Preview Container -->
             <div id="uploadPreview" class="hidden">
-              <img id="previewImage" class="max-h-56 mx-auto rounded-xl shadow-sm border border-slate-200" alt="Preview" />
-              <div class="mt-3 flex items-center justify-center gap-3">
-                <span id="fileName" class="text-xs text-slate-600 font-medium truncate max-w-xs"></span>
-                <button type="button" id="removeFile" class="text-xs font-semibold text-red-600 hover:text-red-700 bg-red-50 px-2.5 py-1 rounded-lg transition">
-                  Ganti Foto
-                </button>
+              <img id="previewImage" class="max-h-56 mx-auto rounded-xl shadow-sm border border-slate-200" alt="Preview Akun HSI" />
+              <div class="mt-3 flex flex-col items-center justify-center gap-1.5">
+                <div class="flex items-center justify-center gap-3">
+                  <span id="fileName" class="text-xs text-slate-600 font-medium truncate max-w-xs"></span>
+                  <button type="button" id="removeFile" class="text-xs font-semibold text-red-600 hover:text-red-700 bg-red-50 px-2.5 py-1 rounded-lg transition">
+                    Ganti Foto
+                  </button>
+                </div>
+                <!-- Badge Info Kompresi Otomatis -->
+                <div id="compressionBadge" class="hidden inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-50 border border-emerald-200 text-emerald-800 text-[11px] font-semibold">
+                  <span>⚡</span>
+                  <span id="compressionText">Foto terkompresi otomatis</span>
+                </div>
               </div>
             </div>
           </div>
@@ -133,173 +279,565 @@ import Layout from '../layouts/Layout.astro';
         <!-- Loading State -->
         <div id="loadingState" class="hidden text-center py-3 space-y-2">
           <div class="inline-block animate-spin rounded-full h-7 w-7 border-3 border-primary-600 border-t-transparent"></div>
-          <p class="text-sm font-medium text-slate-600">Mengunggah & memproses pendaftaran...</p>
+          <p class="text-sm font-medium text-slate-600">Mengompresi gambar & mengirim pendaftaran...</p>
         </div>
       </form>
     </div>
   </section>
 
   <script>
-    const API_URL = import.meta.env.PUBLIC_API_URL || 'http://localhost:8787';
+    interface RegionItem {
+      id: string;
+      name: string;
+    }
 
-    const form = document.getElementById('formDaftar') as HTMLFormElement;
-    const dropZone = document.getElementById('dropZone')!;
-    const fileInput = document.getElementById('fileInput') as HTMLInputElement;
-    const uploadPlaceholder = document.getElementById('uploadPlaceholder')!;
-    const uploadPreview = document.getElementById('uploadPreview')!;
-    const previewImage = document.getElementById('previewImage') as HTMLImageElement;
-    const fileNameEl = document.getElementById('fileName')!;
-    const removeFileBtn = document.getElementById('removeFile')!;
-    const submitBtn = document.getElementById('submitBtn') as HTMLButtonElement;
-    const loadingState = document.getElementById('loadingState')!;
-    const errorState = document.getElementById('errorState')!;
-    const errorMessage = document.getElementById('errorMessage')!;
+    function toTitleCase(str: string): string {
+      return str
+        .toLowerCase()
+        .split(' ')
+        .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
+        .join(' ');
+    }
 
-    let selectedFile: File | Blob | null = null;
-    let originalFileName = '';
+    function formatFileSize(bytes: number): string {
+      if (bytes < 1024) return bytes + ' B';
+      if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB';
+      return (bytes / (1024 * 1024)).toFixed(2) + ' MB';
+    }
 
-    dropZone.addEventListener('click', () => fileInput.click());
-    dropZone.addEventListener('dragover', (e) => {
-      e.preventDefault();
-      dropZone.classList.add('border-primary-500', 'bg-primary-50/30');
-    });
-    dropZone.addEventListener('dragleave', () => {
-      dropZone.classList.remove('border-primary-500', 'bg-primary-50/30');
-    });
-    dropZone.addEventListener('drop', (e) => {
-      e.preventDefault();
-      dropZone.classList.remove('border-primary-500', 'bg-primary-50/30');
-      const files = e.dataTransfer?.files;
-      if (files && files.length > 0) handleFile(files[0]);
-    });
+    class SearchableDropdown {
+      private wrapper: HTMLElement;
+      private input: HTMLInputElement;
+      private list: HTMLUListElement;
+      private hiddenId: HTMLInputElement;
+      private hiddenName: HTMLInputElement;
+      private items: RegionItem[] = [];
+      private onSelectCallback?: (item: RegionItem) => void;
+      private onClearCallback?: () => void;
 
-    fileInput.addEventListener('change', () => {
-      if (fileInput.files && fileInput.files.length > 0) handleFile(fileInput.files[0]);
-    });
+      constructor(
+        fieldId: string,
+        onSelect?: (item: RegionItem) => void,
+        onClear?: () => void
+      ) {
+        this.wrapper = document.getElementById(`field_${fieldId}`) as HTMLElement;
+        this.input = document.getElementById(`search_${fieldId}`) as HTMLInputElement;
+        this.list = document.getElementById(`list_${fieldId}`) as HTMLUListElement;
+        this.hiddenId = document.getElementById(`val_${fieldId}_id`) as HTMLInputElement;
+        this.hiddenName = document.getElementById(`val_${fieldId}_name`) as HTMLInputElement;
+        this.onSelectCallback = onSelect;
+        this.onClearCallback = onClear;
 
-    removeFileBtn.addEventListener('click', (e) => {
-      e.stopPropagation();
-      selectedFile = null;
-      originalFileName = '';
-      uploadPlaceholder.classList.remove('hidden');
-      uploadPreview.classList.add('hidden');
-      fileInput.value = '';
-    });
+        if (!this.input || !this.list) return;
 
-    // Client-side image compression
-    async function compressImage(file: File): Promise<Blob> {
-      return new Promise((resolve) => {
-        const img = new Image();
-        img.onload = () => {
-          const canvas = document.createElement('canvas');
-          let width = img.width;
-          let height = img.height;
-          const maxDim = 1600;
+        this.input.addEventListener('focus', () => {
+          if (!this.input.disabled && this.items.length > 0) {
+            this.renderList(this.input.value);
+            this.openList();
+          }
+        });
 
-          if (width > maxDim || height > maxDim) {
-            if (width > height) {
-              height = Math.round((height * maxDim) / width);
-              width = maxDim;
-            } else {
-              width = Math.round((width * maxDim) / height);
-              height = maxDim;
+        this.input.addEventListener('click', () => {
+          if (!this.input.disabled && this.items.length > 0) {
+            this.renderList(this.input.value);
+            this.openList();
+          }
+        });
+
+        this.input.addEventListener('input', () => {
+          this.hiddenId.value = '';
+          this.hiddenName.value = '';
+          this.renderList(this.input.value);
+          this.openList();
+        });
+
+        // Tutup jika klik di luar dropdown
+        document.addEventListener('click', (e) => {
+          if (this.wrapper && !this.wrapper.contains(e.target as Node)) {
+            this.closeList();
+            // Jika user mengetik namun tidak klik list, cocokkan nama terdekat
+            if (this.input.value && !this.hiddenName.value) {
+              const match = this.items.find(
+                (i) => toTitleCase(i.name).toLowerCase() === this.input.value.trim().toLowerCase()
+              );
+              if (match) {
+                this.selectItem(match);
+              } else {
+                this.hiddenName.value = this.input.value.trim();
+              }
             }
           }
+        });
+      }
 
-          canvas.width = width;
-          canvas.height = height;
-          const ctx = canvas.getContext('2d');
-          ctx?.drawImage(img, 0, 0, width, height);
+      setItems(items: RegionItem[]) {
+        // Urut abjad secara alfabetis
+        this.items = [...items].sort((a, b) => a.name.localeCompare(b.name, 'id'));
+        this.enable('Pilih atau ketik untuk mencari...');
+      }
 
-          canvas.toBlob(
-            (blob) => {
-              resolve(blob || file);
-            },
-            'image/jpeg',
-            0.82
-          );
+      setLoading(message = 'Memuat data...') {
+        this.items = [];
+        this.input.value = '';
+        this.hiddenId.value = '';
+        this.hiddenName.value = '';
+        this.input.placeholder = message;
+        this.input.disabled = true;
+        this.input.classList.remove('bg-white');
+        this.input.classList.add('bg-slate-100', 'cursor-not-allowed');
+        this.closeList();
+      }
+
+      enable(placeholder = 'Pilih atau ketik untuk mencari...') {
+        this.input.disabled = false;
+        this.input.placeholder = placeholder;
+        this.input.classList.remove('bg-slate-100', 'cursor-not-allowed');
+        this.input.classList.add('bg-white');
+      }
+
+      reset(placeholder = 'Pilih data sebelumnya dahulu') {
+        this.items = [];
+        this.input.value = '';
+        this.hiddenId.value = '';
+        this.hiddenName.value = '';
+        this.input.disabled = true;
+        this.input.placeholder = placeholder;
+        this.input.classList.remove('bg-white');
+        this.input.classList.add('bg-slate-100', 'cursor-not-allowed');
+        this.closeList();
+        if (this.onClearCallback) this.onClearCallback();
+      }
+
+      getValue(): string {
+        return this.hiddenName.value || this.input.value.trim();
+      }
+
+      getId(): string {
+        return this.hiddenId.value;
+      }
+
+      private openList() {
+        this.list.classList.remove('hidden');
+      }
+
+      private closeList() {
+        this.list.classList.add('hidden');
+      }
+
+      private renderList(filterQuery = '') {
+        const q = filterQuery.trim().toLowerCase();
+        const filtered = q
+          ? this.items.filter((item) => item.name.toLowerCase().includes(q))
+          : this.items;
+
+        this.list.innerHTML = '';
+
+        if (filtered.length === 0) {
+          const li = document.createElement('li');
+          li.className = 'px-3.5 py-3 text-slate-400 text-center text-xs';
+          li.textContent = 'Wilayah tidak ditemukan';
+          this.list.appendChild(li);
+          return;
+        }
+
+        filtered.forEach((item) => {
+          const li = document.createElement('li');
+          li.className =
+            'px-3.5 py-2.5 hover:bg-primary-50 hover:text-primary-800 cursor-pointer font-medium transition text-xs flex items-center justify-between';
+          li.textContent = toTitleCase(item.name);
+          li.addEventListener('click', () => {
+            this.selectItem(item);
+          });
+          this.list.appendChild(li);
+        });
+      }
+
+      private selectItem(item: RegionItem) {
+        const formatted = toTitleCase(item.name);
+        this.input.value = formatted;
+        this.hiddenId.value = item.id;
+        this.hiddenName.value = formatted;
+        this.closeList();
+        if (this.onSelectCallback) this.onSelectCallback(item);
+      }
+    }
+
+    function initDaftarPage() {
+      const API_URL = import.meta.env.PUBLIC_API_URL || 'http://localhost:8787';
+
+      const form = document.getElementById('formDaftar') as HTMLFormElement | null;
+      if (!form) return;
+
+      const inputNama = document.getElementById('nama') as HTMLInputElement | null;
+      const namaError = document.getElementById('namaError');
+      const inputWA = document.getElementById('no_whatsapp') as HTMLInputElement | null;
+
+      const dropZone = document.getElementById('dropZone');
+      const fileInput = document.getElementById('fileInput') as HTMLInputElement | null;
+      const uploadPlaceholder = document.getElementById('uploadPlaceholder');
+      const uploadPreview = document.getElementById('uploadPreview');
+      const previewImage = document.getElementById('previewImage') as HTMLImageElement | null;
+      const fileNameEl = document.getElementById('fileName');
+      const removeFileBtn = document.getElementById('removeFile');
+      const compressionBadge = document.getElementById('compressionBadge');
+      const compressionText = document.getElementById('compressionText');
+
+      const submitBtn = document.getElementById('submitBtn') as HTMLButtonElement | null;
+      const loadingState = document.getElementById('loadingState');
+      const errorState = document.getElementById('errorState');
+      const errorMessage = document.getElementById('errorMessage');
+
+      if (!inputNama || !inputWA || !dropZone || !fileInput || !uploadPlaceholder || !uploadPreview || !previewImage || !fileNameEl || !removeFileBtn || !submitBtn || !loadingState || !errorState || !errorMessage) return;
+
+      // ==========================================
+      // 1. VALIDASI NAMA LENGKAP MINIMAL 3 HURUF
+      // ==========================================
+      function validateNama(): boolean {
+        if (!inputNama) return false;
+        const val = inputNama.value.trim();
+        if (val.length < 3) {
+          inputNama.classList.remove('border-slate-300', 'focus:border-primary-600', 'focus:ring-primary-500/20');
+          inputNama.classList.add('border-red-500', 'bg-red-50/20', 'focus:border-red-500', 'focus:ring-red-500/20');
+          namaError?.classList.remove('hidden');
+          return false;
+        } else {
+          resetNamaStyle();
+          return true;
+        }
+      }
+
+      function resetNamaStyle() {
+        if (!inputNama) return;
+        inputNama.classList.remove('border-red-500', 'bg-red-50/20', 'focus:border-red-500', 'focus:ring-red-500/20');
+        inputNama.classList.add('border-slate-300', 'focus:border-primary-600', 'focus:ring-primary-500/20');
+        namaError?.classList.add('hidden');
+      }
+
+      // Saat blur (keluar kolom): jika kurang dari 3 huruf maka kolom jadi merah & ada notif
+      inputNama.addEventListener('blur', () => {
+        if (inputNama.value.trim().length > 0) {
+          validateNama();
+        }
+      });
+
+      // Saat diklik / fokus kembali: kembali normal tidak merah
+      inputNama.addEventListener('focus', resetNamaStyle);
+      inputNama.addEventListener('click', resetNamaStyle);
+      inputNama.addEventListener('input', () => {
+        if (inputNama.value.trim().length >= 3) {
+          resetNamaStyle();
+        }
+      });
+
+      // ==========================================
+      // 2. NOMOR WA HANYA BISA DIINPUT ANGKA
+      // ==========================================
+      inputWA.addEventListener('input', (e) => {
+        const target = e.target as HTMLInputElement;
+        target.value = target.value.replace(/\D/g, '');
+      });
+
+      inputWA.addEventListener('keypress', (e) => {
+        if (!/[0-9]/.test(e.key)) {
+          e.preventDefault();
+        }
+      });
+
+      inputWA.addEventListener('paste', (e) => {
+        e.preventDefault();
+        const pasteData = e.clipboardData?.getData('text') || '';
+        const digitsOnly = pasteData.replace(/\D/g, '');
+        document.execCommand('insertText', false, digitsOnly);
+      });
+
+      // ==========================================
+      // 3. WILAYAH INDONESIA API & SEARCHABLE DROPDOWN
+      // ==========================================
+      const WILAYAH_API = 'https://emsifa.github.io/api-wilayah-indonesia/api';
+
+      const ddDesa = new SearchableDropdown('desa');
+      const ddKecamatan = new SearchableDropdown(
+        'kecamatan',
+        async (kec) => {
+          ddDesa.setLoading('Memuat daftar kelurahan/desa...');
+          try {
+            const res = await fetch(`${WILAYAH_API}/villages/${kec.id}.json`);
+            if (!res.ok) throw new Error();
+            const data: RegionItem[] = await res.json();
+            ddDesa.setItems(data);
+          } catch {
+            ddDesa.enable('Ketik nama kelurahan/desa manual');
+          }
+        },
+        () => ddDesa.reset('Pilih Kecamatan dahulu')
+      );
+
+      const ddKota = new SearchableDropdown(
+        'kota',
+        async (kota) => {
+          ddKecamatan.setLoading('Memuat daftar kecamatan...');
+          ddDesa.reset('Pilih Kecamatan dahulu');
+          try {
+            const res = await fetch(`${WILAYAH_API}/districts/${kota.id}.json`);
+            if (!res.ok) throw new Error();
+            const data: RegionItem[] = await res.json();
+            ddKecamatan.setItems(data);
+          } catch {
+            ddKecamatan.enable('Ketik nama kecamatan manual');
+          }
+        },
+        () => {
+          ddKecamatan.reset('Pilih Kota/Kabupaten dahulu');
+          ddDesa.reset('Pilih Kecamatan dahulu');
+        }
+      );
+
+      const ddProvinsi = new SearchableDropdown(
+        'provinsi',
+        async (prov) => {
+          ddKota.setLoading('Memuat daftar kota/kabupaten...');
+          ddKecamatan.reset('Pilih Kota/Kabupaten dahulu');
+          ddDesa.reset('Pilih Kecamatan dahulu');
+          try {
+            const res = await fetch(`${WILAYAH_API}/regencies/${prov.id}.json`);
+            if (!res.ok) throw new Error();
+            const data: RegionItem[] = await res.json();
+            ddKota.setItems(data);
+          } catch {
+            ddKota.enable('Ketik nama kota/kabupaten manual');
+          }
+        },
+        () => {
+          ddKota.reset('Pilih Provinsi dahulu');
+          ddKecamatan.reset('Pilih Kota/Kabupaten dahulu');
+          ddDesa.reset('Pilih Kecamatan dahulu');
+        }
+      );
+
+      // Load Provinsi saat halaman dibuka
+      async function loadProvinces() {
+        ddProvinsi.setLoading('Memuat daftar provinsi...');
+        try {
+          const res = await fetch(`${WILAYAH_API}/provinces.json`);
+          if (!res.ok) throw new Error();
+          const data: RegionItem[] = await res.json();
+          ddProvinsi.setItems(data);
+        } catch {
+          ddProvinsi.enable('Ketik nama provinsi manual');
+        }
+      }
+      loadProvinces();
+
+      // ==========================================
+      // 4. UPLOAD & STANDAR KOMPRESI OTOMATIS FOTO
+      // ==========================================
+      let selectedFile: File | Blob | null = null;
+      let originalFileName = '';
+
+      dropZone.addEventListener('click', () => fileInput.click());
+      dropZone.addEventListener('dragover', (e) => {
+        e.preventDefault();
+        dropZone.classList.add('border-primary-500', 'bg-primary-50/30');
+      });
+      dropZone.addEventListener('dragleave', () => {
+        dropZone.classList.remove('border-primary-500', 'bg-primary-50/30');
+      });
+      dropZone.addEventListener('drop', (e) => {
+        e.preventDefault();
+        dropZone.classList.remove('border-primary-500', 'bg-primary-50/30');
+        const files = e.dataTransfer?.files;
+        if (files && files.length > 0) handleFile(files[0]);
+      });
+
+      fileInput.addEventListener('change', () => {
+        if (fileInput.files && fileInput.files.length > 0) handleFile(fileInput.files[0]);
+      });
+
+      removeFileBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        selectedFile = null;
+        originalFileName = '';
+        uploadPlaceholder.classList.remove('hidden');
+        uploadPreview.classList.add('hidden');
+        fileInput.value = '';
+        compressionBadge?.classList.add('hidden');
+      });
+
+      // Standar Kompresi Otomatis: Resolusi Maks 1280px, format JPEG 0.78 (target ~150-350 KB)
+      async function compressImage(file: File): Promise<Blob> {
+        return new Promise((resolve) => {
+          const img = new Image();
+          img.onload = () => {
+            const canvas = document.createElement('canvas');
+            let width = img.width;
+            let height = img.height;
+            const maxDim = 1280; // Standar optimal teks & NIP tetap tajam
+
+            if (width > maxDim || height > maxDim) {
+              if (width > height) {
+                height = Math.round((height * maxDim) / width);
+                width = maxDim;
+              } else {
+                width = Math.round((width * maxDim) / height);
+                height = maxDim;
+              }
+            }
+
+            canvas.width = width;
+            canvas.height = height;
+            const ctx = canvas.getContext('2d');
+            if (ctx) {
+              ctx.fillStyle = '#ffffff';
+              ctx.fillRect(0, 0, width, height);
+              ctx.drawImage(img, 0, 0, width, height);
+            }
+
+            canvas.toBlob(
+              (blob) => {
+                resolve(blob || file);
+              },
+              'image/jpeg',
+              0.78 // Kompresi optimal
+            );
+          };
+          img.src = URL.createObjectURL(file);
+        });
+      }
+
+      async function handleFile(file: File) {
+        if (!['image/jpeg', 'image/png', 'image/webp'].includes(file.type)) {
+          showError('Format file tidak didukung. Harap pilih gambar JPG, PNG, atau WebP.');
+          return;
+        }
+
+        originalFileName = file.name;
+        hideError();
+
+        const originalSize = file.size;
+
+        // Kompresi otomatis untuk menjaga standar penyimpanan
+        selectedFile = await compressImage(file);
+        const compressedSize = selectedFile.size;
+
+        const reader = new FileReader();
+        reader.onload = (e) => {
+          if (previewImage) previewImage.src = e.target?.result as string;
+          if (fileNameEl) fileNameEl.textContent = originalFileName;
+
+          if (compressionBadge && compressionText) {
+            const savedPct = Math.max(0, Math.round((1 - compressedSize / originalSize) * 100));
+            compressionText.textContent = `Foto Terkompresi: ${formatFileSize(originalSize)} → ${formatFileSize(compressedSize)} (Hemat ${savedPct}%)`;
+            compressionBadge.classList.remove('hidden');
+          }
+
+          uploadPlaceholder?.classList.add('hidden');
+          uploadPreview?.classList.remove('hidden');
         };
-        img.src = URL.createObjectURL(file);
+        reader.readAsDataURL(selectedFile);
+      }
+
+      function showError(msg: string) {
+        if (errorMessage) errorMessage.textContent = msg;
+        errorState?.classList.remove('hidden');
+      }
+      function hideError() {
+        errorState?.classList.add('hidden');
+      }
+
+      // ==========================================
+      // 5. SUBMIT FORM
+      // ==========================================
+      form.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        hideError();
+
+        if (!validateNama()) {
+          inputNama.focus();
+          showError('Nama lengkap minimal 3 huruf.');
+          return;
+        }
+
+        const nama = inputNama.value.trim();
+        const jenisKelaminEl = form.querySelector('input[name="jenis_kelamin"]:checked') as HTMLInputElement | null;
+        const jenisKelamin = jenisKelaminEl ? jenisKelaminEl.value : '';
+        const nip = (form.querySelector('#nip') as HTMLInputElement).value.trim().toUpperCase();
+        const noWa = inputWA.value.trim();
+
+        const prov = ddProvinsi.getValue();
+        const kota = ddKota.getValue();
+        const kec = ddKecamatan.getValue();
+        const desa = ddDesa.getValue();
+
+        const domisili = [desa, kec ? `Kec. ${kec}` : '', kota, prov ? `Prov. ${prov}` : '']
+          .filter(Boolean)
+          .join(', ');
+
+        const alasan = (form.querySelector('#alasan') as HTMLTextAreaElement).value.trim();
+
+        if (!jenisKelamin) {
+          showError('Harap pilih kategori Ikhwan atau Akhwat.');
+          return;
+        }
+
+        if (!nip) {
+          showError('Harap masukkan NIP HSI Anda (contoh: ARN... atau ART...).');
+          return;
+        }
+
+        const cleanWa = noWa.replace(/\D/g, '');
+        if (!/^(08|628)\d{7,13}$/.test(cleanWa)) {
+          showError('Format nomor WhatsApp tidak valid. Masukkan nomor telepon aktif yang benar (contoh: 08123456789).');
+          return;
+        }
+
+        if (!prov || !kota || !kec || !desa) {
+          showError('Harap lengkapi seluruh data domisili (Provinsi, Kota/Kabupaten, Kecamatan, dan Kelurahan/Desa).');
+          return;
+        }
+
+        if (!alasan) {
+          showError('Harap jelaskan singkat alasan Anda ingin mengikuti acara ini.');
+          return;
+        }
+
+        if (!selectedFile) {
+          showError('Harap lampirkan foto/screenshot bukti akun HSI sebelum mengirim formulir.');
+          return;
+        }
+
+        submitBtn.classList.add('hidden');
+        loadingState.classList.remove('hidden');
+
+        try {
+          const formData = new FormData();
+          formData.append('nama', nama);
+          formData.append('jenis_kelamin', jenisKelamin);
+          formData.append('nip', nip);
+          formData.append('no_whatsapp', noWa);
+          formData.append('domisili', domisili);
+          formData.append('alasan', alasan);
+          formData.append('instansi', `${jenisKelamin} | NIP: ${nip} | ${kota}, ${prov}`);
+          formData.append('screenshot', selectedFile, originalFileName || 'ss_akun_hsi.jpg');
+
+          const res = await fetch(`${API_URL}/api/peserta/daftar`, {
+            method: 'POST',
+            body: formData,
+          });
+
+          const data = await res.json();
+          if (!res.ok) {
+            throw new Error(data.error || 'Gagal mengirim formulir pendaftaran');
+          }
+
+          window.location.href = `/sukses?wa=${encodeURIComponent(noWa)}`;
+        } catch (err: any) {
+          showError(err.message || 'Terjadi kesalahan sistem saat mengirim data.');
+          submitBtn.classList.remove('hidden');
+          loadingState.classList.add('hidden');
+        }
       });
     }
 
-    async function handleFile(file: File) {
-      if (!['image/jpeg', 'image/png', 'image/webp'].includes(file.type)) {
-        showError('Format file tidak didukung. Harap pilih gambar JPG, PNG, atau WebP.');
-        return;
-      }
-
-      originalFileName = file.name;
-      hideError();
-
-      // Compress jika ukuran > 1MB
-      if (file.size > 1024 * 1024) {
-        selectedFile = await compressImage(file);
-      } else {
-        selectedFile = file;
-      }
-
-      const reader = new FileReader();
-      reader.onload = (e) => {
-        previewImage.src = e.target?.result as string;
-        fileNameEl.textContent = originalFileName;
-        uploadPlaceholder.classList.add('hidden');
-        uploadPreview.classList.remove('hidden');
-      };
-      reader.readAsDataURL(selectedFile);
-    }
-
-    function showError(msg: string) {
-      errorMessage.textContent = msg;
-      errorState.classList.remove('hidden');
-    }
-    function hideError() {
-      errorState.classList.add('hidden');
-    }
-
-    form.addEventListener('submit', async (e) => {
-      e.preventDefault();
-      hideError();
-
-      if (!selectedFile) {
-        showError('Harap lampirkan foto/screenshot bukti sebelum mengirim form.');
-        return;
-      }
-
-      const noWa = (form.querySelector('#no_whatsapp') as HTMLInputElement).value.trim();
-      const cleanWa = noWa.replace(/\D/g, '');
-      if (!/^(08|628)\d{7,13}$/.test(cleanWa)) {
-        showError('Format nomor WhatsApp tidak valid. Masukkan nomor telepon aktif yang benar.');
-        return;
-      }
-
-      submitBtn.classList.add('hidden');
-      loadingState.classList.remove('hidden');
-
-      try {
-        const formData = new FormData();
-        formData.append('nama', (form.querySelector('#nama') as HTMLInputElement).value.trim());
-        formData.append('email', (form.querySelector('#email') as HTMLInputElement).value.trim());
-        formData.append('no_whatsapp', noWa);
-        formData.append('instansi', (form.querySelector('#instansi') as HTMLInputElement).value.trim());
-        formData.append('screenshot', selectedFile, originalFileName || 'screenshot.jpg');
-
-        const res = await fetch(`${API_URL}/api/peserta/daftar`, {
-          method: 'POST',
-          body: formData,
-        });
-
-        const data = await res.json();
-        if (!res.ok) {
-          throw new Error(data.error || 'Gagal mengirim formulir pendaftaran');
-        }
-
-        window.location.href = `/sukses?wa=${encodeURIComponent(noWa)}`;
-      } catch (err: any) {
-        showError(err.message || 'Terjadi kesalahan sistem saat mengirim data.');
-        submitBtn.classList.remove('hidden');
-        loadingState.classList.add('hidden');
-      }
-    });
+    document.addEventListener('astro:page-load', initDaftarPage);
   </script>
 </Layout>

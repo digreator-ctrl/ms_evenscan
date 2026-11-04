@@ -1,6 +1,7 @@
 ---
 import Navbar from '../components/Navbar.astro';
 import Footer from '../components/Footer.astro';
+import { ClientRouter } from 'astro:transitions';
 
 interface Props {
   title: string;
@@ -21,6 +22,7 @@ const { title, description = 'Pendaftaran Acara Resmi Muslim Scene dengan QR Cod
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
     <title>{title} | Muslim Scene</title>
+    <ClientRouter />
   </head>
   <body class="min-h-screen flex flex-col bg-grid-pattern text-slate-900 font-sans antialiased selection:bg-primary-100 selection:text-primary-800">
     <Navbar />

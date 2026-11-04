@@ -63,13 +63,16 @@ import Layout from '../layouts/Layout.astro';
   </section>
 
   <script>
-    const params = new URLSearchParams(window.location.search);
-    const wa = params.get('wa');
-    if (wa) {
-      const btn = document.getElementById('btnCekStatus') as HTMLAnchorElement;
-      if (btn) {
-        btn.href = `/status?wa=${encodeURIComponent(wa)}`;
+    function initSuksesPage() {
+      const params = new URLSearchParams(window.location.search);
+      const wa = params.get('wa');
+      if (wa) {
+        const btn = document.getElementById('btnCekStatus') as HTMLAnchorElement | null;
+        if (btn) {
+          btn.href = `/status?wa=${encodeURIComponent(wa)}`;
+        }
       }
     }
+    document.addEventListener('astro:page-load', initSuksesPage);
   </script>
 </Layout>

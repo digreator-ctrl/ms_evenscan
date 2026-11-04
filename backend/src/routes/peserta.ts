@@ -41,7 +41,11 @@ pesertaRoutes.post('/daftar', validatePendaftaran, async (c) => {
   const nama = (body['nama'] as string).trim();
   const email = ((body['email'] as string) || '').trim();
   const no_whatsapp = (body['no_whatsapp'] as string).trim();
-  const instansi = ((body['instansi'] as string) || '').trim();
+  const jenis_kelamin = ((body['jenis_kelamin'] as string) || '').trim();
+  const nip = ((body['nip'] as string) || '').trim();
+  const domisili = ((body['domisili'] as string) || '').trim();
+  const alasan = ((body['alasan'] as string) || '').trim();
+  const instansi = ((body['instansi'] as string) || (nip ? `${jenis_kelamin ? jenis_kelamin + ' | ' : ''}NIP: ${nip}${domisili ? ' | ' + domisili : ''}` : '')).trim();
   const screenshot = body['screenshot'] as File;
 
   const id = 'reg_' + nanoid(10);
@@ -63,13 +67,24 @@ pesertaRoutes.post('/daftar', validatePendaftaran, async (c) => {
     const screenshotUrl = `/api/peserta/screenshot/${encodeURIComponent(storageKey)}`;
 
     // 2. Simpan record ke Cloudflare D1
-    await db
-      .prepare(
-        `INSERT INTO pendaftar (id, nama, email, no_whatsapp, instansi, screenshot_url, status)
-         VALUES (?, ?, ?, ?, ?, ?, 'menunggu')`
-      )
-      .bind(id, nama, email, no_whatsapp, instansi, screenshotUrl)
-      .run();
+    try {
+      await db
+        .prepare(
+          `INSERT INTO pendaftar (id, nama, email, no_whatsapp, instansi, jenis_kelamin, nip, domisili, alasan, screenshot_url, status)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'menunggu')`
+        )
+        .bind(id, nama, email, no_whatsapp, instansi, jenis_kelamin, nip, domisili, alasan, screenshotUrl)
+        .run();
+    } catch {
+      // Fallback jika skema database lokal belum menambahkan kolom baru
+      await db
+        .prepare(
+          `INSERT INTO pendaftar (id, nama, email, no_whatsapp, instansi, screenshot_url, status)
+           VALUES (?, ?, ?, ?, ?, ?, 'menunggu')`
+        )
+        .bind(id, nama, email, no_whatsapp, instansi, screenshotUrl)
+        .run();
+    }
 
     return c.json(
       {
