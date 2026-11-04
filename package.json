@@ -1,0 +1,26 @@
+{
+  "name": "ms-evenscan",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Aplikasi Pendaftaran Acara dengan QR Code - Muslim Scene EvenScan",
+  "workspaces": [
+    "backend",
+    "frontend/peserta",
+    "frontend/admin"
+  ],
+  "scripts": {
+    "dev:backend": "pnpm --filter backend dev",
+    "dev:peserta": "pnpm --filter peserta dev",
+    "dev:admin": "pnpm --filter admin dev",
+    "dev": "concurrently \"pnpm dev:backend\" \"pnpm dev:peserta\" \"pnpm dev:admin\"",
+    "build:backend": "pnpm --filter backend build",
+    "build:peserta": "pnpm --filter peserta build",
+    "build:admin": "pnpm --filter admin build",
+    "build": "pnpm build:backend && pnpm build:peserta && pnpm build:admin"
+  },
+  "devDependencies": {
+    "concurrently": "^9.1.0"
+  },
+  "packageManager": "pnpm@9.15.0"
+}
+

@@ -1,0 +1,48 @@
+---
+import Navbar from '../components/Navbar.astro';
+import Footer from '../components/Footer.astro';
+
+interface Props {
+  title: string;
+  description?: string;
+}
+
+const { title, description = 'Pendaftaran Acara Resmi Muslim Scene dengan QR Code' } = Astro.props;
+---
+
+<!doctype html>
+<html lang="id" class="scroll-smooth">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="description" content={description} />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+    <title>{title} | Muslim Scene</title>
+  </head>
+  <body class="min-h-screen flex flex-col bg-grid-pattern text-slate-900 font-sans antialiased selection:bg-primary-100 selection:text-primary-800">
+    <Navbar />
+
+    <main class="flex-1">
+      <slot />
+    </main>
+
+    <Footer />
+  </body>
+</html>
+
+<style is:global>
+  body {
+    font-family: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
+  }
+
+  .bg-grid-pattern {
+    background-color: #f8fafc;
+    background-image: 
+      linear-gradient(to right, rgba(226, 232, 240, 0.7) 1px, transparent 1px),
+      linear-gradient(to bottom, rgba(226, 232, 240, 0.7) 1px, transparent 1px);
+    background-size: 24px 24px;
+  }
+</style>

@@ -1,0 +1,305 @@
+---
+import Layout from '../layouts/Layout.astro';
+---
+
+<Layout title="Formulir Pendaftaran Acara">
+  <section class="py-12 px-4">
+    <div class="max-w-xl mx-auto">
+      <div class="text-center mb-8">
+        <span class="inline-block px-3 py-1 bg-primary-100 text-primary-800 rounded-full text-xs font-semibold uppercase tracking-wider mb-2">
+          Pendaftaran Online
+        </span>
+        <h1 class="text-3xl font-extrabold text-slate-900 tracking-tight">Formulir Peserta</h1>
+        <p class="text-slate-500 text-sm mt-1 max-w-md mx-auto">
+          Lengkapi data diri Anda dan unggah bukti tangkapan layar untuk diverifikasi oleh panitia.
+        </p>
+      </div>
+
+      <!-- Form Card -->
+      <form id="formDaftar" class="bg-white rounded-2xl shadow-sm border border-slate-200/80 p-6 sm:p-8 space-y-6">
+        <!-- Nama Lengkap -->
+        <div>
+          <label for="nama" class="block text-sm font-semibold text-slate-700 mb-1.5">
+            Nama Lengkap <span class="text-red-500">*</span>
+          </label>
+          <input
+            type="text"
+            id="nama"
+            name="nama"
+            required
+            placeholder="Contoh: Muhammad Ilham Fauzan"
+            class="w-full border border-slate-300 rounded-xl px-4 py-3 text-sm focus:ring-2 focus:ring-primary-500/20 focus:border-primary-600 outline-none transition"
+          />
+        </div>
+
+        <!-- Nomor WhatsApp -->
+        <div>
+          <label for="no_whatsapp" class="block text-sm font-semibold text-slate-700 mb-1.5">
+            Nomor WhatsApp Aktif <span class="text-red-500">*</span>
+          </label>
+          <input
+            type="tel"
+            id="no_whatsapp"
+            name="no_whatsapp"
+            required
+            placeholder="081234567890"
+            class="w-full border border-slate-300 rounded-xl px-4 py-3 text-sm focus:ring-2 focus:ring-primary-500/20 focus:border-primary-600 outline-none transition"
+          />
+          <p class="text-xs text-slate-400 mt-1">
+            📱 Pastikan nomor WhatsApp aktif untuk notifikasi status & pengiriman QR kehadiran.
+          </p>
+        </div>
+
+        <!-- Email -->
+        <div>
+          <label for="email" class="block text-sm font-semibold text-slate-700 mb-1.5">
+            Alamat Email <span class="text-slate-400 font-normal">(Opsional)</span>
+          </label>
+          <input
+            type="email"
+            id="email"
+            name="email"
+            placeholder="nama@email.com"
+            class="w-full border border-slate-300 rounded-xl px-4 py-3 text-sm focus:ring-2 focus:ring-primary-500/20 focus:border-primary-600 outline-none transition"
+          />
+        </div>
+
+        <!-- Instansi / Komunitas -->
+        <div>
+          <label for="instansi" class="block text-sm font-semibold text-slate-700 mb-1.5">
+            Instansi / Asal Komunitas <span class="text-slate-400 font-normal">(Opsional)</span>
+          </label>
+          <input
+            type="text"
+            id="instansi"
+            name="instansi"
+            placeholder="Nama universitas, kantor, atau komunitas"
+            class="w-full border border-slate-300 rounded-xl px-4 py-3 text-sm focus:ring-2 focus:ring-primary-500/20 focus:border-primary-600 outline-none transition"
+          />
+        </div>
+
+        <!-- Upload Screenshot -->
+        <div>
+          <label class="block text-sm font-semibold text-slate-700 mb-1.5">
+            Unggah Bukti Screenshot <span class="text-red-500">*</span>
+          </label>
+          <div
+            id="dropZone"
+            class="border-2 border-dashed border-slate-300 rounded-2xl p-6 text-center cursor-pointer hover:border-primary-500 hover:bg-primary-50/20 transition group"
+          >
+            <div id="uploadPlaceholder" class="space-y-2">
+              <div class="w-12 h-12 bg-primary-50 text-primary-600 rounded-full flex items-center justify-center mx-auto group-hover:scale-110 transition">
+                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                </svg>
+              </div>
+              <p class="text-sm font-medium text-slate-700">
+                Klik atau seret file tangkapan layar ke sini
+              </p>
+              <p class="text-xs text-slate-400">
+                Format JPG, PNG, atau WebP (kompresi otomatis jika gambar berukuran besar)
+              </p>
+            </div>
+
+            <!-- Preview Container -->
+            <div id="uploadPreview" class="hidden">
+              <img id="previewImage" class="max-h-56 mx-auto rounded-xl shadow-sm border border-slate-200" alt="Preview" />
+              <div class="mt-3 flex items-center justify-center gap-3">
+                <span id="fileName" class="text-xs text-slate-600 font-medium truncate max-w-xs"></span>
+                <button type="button" id="removeFile" class="text-xs font-semibold text-red-600 hover:text-red-700 bg-red-50 px-2.5 py-1 rounded-lg transition">
+                  Ganti Foto
+                </button>
+              </div>
+            </div>
+          </div>
+          <input type="file" id="fileInput" accept="image/jpeg,image/png,image/webp" class="hidden" />
+        </div>
+
+        <!-- Error Alert -->
+        <div id="errorState" class="hidden bg-red-50 border border-red-200 text-red-700 rounded-xl p-4 text-sm flex items-start gap-3">
+          <span class="text-base">⚠️</span>
+          <span id="errorMessage" class="flex-1"></span>
+        </div>
+
+        <!-- Submit Button -->
+        <button
+          type="submit"
+          id="submitBtn"
+          class="w-full bg-primary-600 hover:bg-primary-700 active:scale-[0.99] text-white font-bold py-3.5 px-6 rounded-xl transition duration-150 shadow-md shadow-primary-600/20"
+        >
+          Kirim Pendaftaran
+        </button>
+
+        <!-- Loading State -->
+        <div id="loadingState" class="hidden text-center py-3 space-y-2">
+          <div class="inline-block animate-spin rounded-full h-7 w-7 border-3 border-primary-600 border-t-transparent"></div>
+          <p class="text-sm font-medium text-slate-600">Mengunggah & memproses pendaftaran...</p>
+        </div>
+      </form>
+    </div>
+  </section>
+
+  <script>
+    const API_URL = import.meta.env.PUBLIC_API_URL || 'http://localhost:8787';
+
+    const form = document.getElementById('formDaftar') as HTMLFormElement;
+    const dropZone = document.getElementById('dropZone')!;
+    const fileInput = document.getElementById('fileInput') as HTMLInputElement;
+    const uploadPlaceholder = document.getElementById('uploadPlaceholder')!;
+    const uploadPreview = document.getElementById('uploadPreview')!;
+    const previewImage = document.getElementById('previewImage') as HTMLImageElement;
+    const fileNameEl = document.getElementById('fileName')!;
+    const removeFileBtn = document.getElementById('removeFile')!;
+    const submitBtn = document.getElementById('submitBtn') as HTMLButtonElement;
+    const loadingState = document.getElementById('loadingState')!;
+    const errorState = document.getElementById('errorState')!;
+    const errorMessage = document.getElementById('errorMessage')!;
+
+    let selectedFile: File | Blob | null = null;
+    let originalFileName = '';
+
+    dropZone.addEventListener('click', () => fileInput.click());
+    dropZone.addEventListener('dragover', (e) => {
+      e.preventDefault();
+      dropZone.classList.add('border-primary-500', 'bg-primary-50/30');
+    });
+    dropZone.addEventListener('dragleave', () => {
+      dropZone.classList.remove('border-primary-500', 'bg-primary-50/30');
+    });
+    dropZone.addEventListener('drop', (e) => {
+      e.preventDefault();
+      dropZone.classList.remove('border-primary-500', 'bg-primary-50/30');
+      const files = e.dataTransfer?.files;
+      if (files && files.length > 0) handleFile(files[0]);
+    });
+
+    fileInput.addEventListener('change', () => {
+      if (fileInput.files && fileInput.files.length > 0) handleFile(fileInput.files[0]);
+    });
+
+    removeFileBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      selectedFile = null;
+      originalFileName = '';
+      uploadPlaceholder.classList.remove('hidden');
+      uploadPreview.classList.add('hidden');
+      fileInput.value = '';
+    });
+
+    // Client-side image compression
+    async function compressImage(file: File): Promise<Blob> {
+      return new Promise((resolve) => {
+        const img = new Image();
+        img.onload = () => {
+          const canvas = document.createElement('canvas');
+          let width = img.width;
+          let height = img.height;
+          const maxDim = 1600;
+
+          if (width > maxDim || height > maxDim) {
+            if (width > height) {
+              height = Math.round((height * maxDim) / width);
+              width = maxDim;
+            } else {
+              width = Math.round((width * maxDim) / height);
+              height = maxDim;
+            }
+          }
+
+          canvas.width = width;
+          canvas.height = height;
+          const ctx = canvas.getContext('2d');
+          ctx?.drawImage(img, 0, 0, width, height);
+
+          canvas.toBlob(
+            (blob) => {
+              resolve(blob || file);
+            },
+            'image/jpeg',
+            0.82
+          );
+        };
+        img.src = URL.createObjectURL(file);
+      });
+    }
+
+    async function handleFile(file: File) {
+      if (!['image/jpeg', 'image/png', 'image/webp'].includes(file.type)) {
+        showError('Format file tidak didukung. Harap pilih gambar JPG, PNG, atau WebP.');
+        return;
+      }
+
+      originalFileName = file.name;
+      hideError();
+
+      // Compress jika ukuran > 1MB
+      if (file.size > 1024 * 1024) {
+        selectedFile = await compressImage(file);
+      } else {
+        selectedFile = file;
+      }
+
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        previewImage.src = e.target?.result as string;
+        fileNameEl.textContent = originalFileName;
+        uploadPlaceholder.classList.add('hidden');
+        uploadPreview.classList.remove('hidden');
+      };
+      reader.readAsDataURL(selectedFile);
+    }
+
+    function showError(msg: string) {
+      errorMessage.textContent = msg;
+      errorState.classList.remove('hidden');
+    }
+    function hideError() {
+      errorState.classList.add('hidden');
+    }
+
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      hideError();
+
+      if (!selectedFile) {
+        showError('Harap lampirkan foto/screenshot bukti sebelum mengirim form.');
+        return;
+      }
+
+      const noWa = (form.querySelector('#no_whatsapp') as HTMLInputElement).value.trim();
+      const cleanWa = noWa.replace(/\D/g, '');
+      if (!/^(08|628)\d{7,13}$/.test(cleanWa)) {
+        showError('Format nomor WhatsApp tidak valid. Masukkan nomor telepon aktif yang benar.');
+        return;
+      }
+
+      submitBtn.classList.add('hidden');
+      loadingState.classList.remove('hidden');
+
+      try {
+        const formData = new FormData();
+        formData.append('nama', (form.querySelector('#nama') as HTMLInputElement).value.trim());
+        formData.append('email', (form.querySelector('#email') as HTMLInputElement).value.trim());
+        formData.append('no_whatsapp', noWa);
+        formData.append('instansi', (form.querySelector('#instansi') as HTMLInputElement).value.trim());
+        formData.append('screenshot', selectedFile, originalFileName || 'screenshot.jpg');
+
+        const res = await fetch(`${API_URL}/api/peserta/daftar`, {
+          method: 'POST',
+          body: formData,
+        });
+
+        const data = await res.json();
+        if (!res.ok) {
+          throw new Error(data.error || 'Gagal mengirim formulir pendaftaran');
+        }
+
+        window.location.href = `/sukses?wa=${encodeURIComponent(noWa)}`;
+      } catch (err: any) {
+        showError(err.message || 'Terjadi kesalahan sistem saat mengirim data.');
+        submitBtn.classList.remove('hidden');
+        loadingState.classList.add('hidden');
+      }
+    });
+  </script>
+</Layout>

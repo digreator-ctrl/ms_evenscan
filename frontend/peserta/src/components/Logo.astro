@@ -1,0 +1,17 @@
+---
+interface Props {
+  className?: string;
+  size?: number;
+  variant?: 'blue' | 'white';
+}
+const { className = "h-9 w-auto", size = 36, variant = 'blue' } = Astro.props;
+const src = variant === 'white' ? '/logo-white.png' : '/logo.png';
+---
+
+<img
+  src={src}
+  alt="Muslim Scene Logo"
+  class={`object-contain ${className}`}
+  height={size}
+  loading="eager"
+/>

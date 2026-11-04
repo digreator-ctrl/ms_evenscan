@@ -1,0 +1,443 @@
+import { useState, useEffect } from 'react';
+
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8787';
+
+interface Pendaftar {
+  id: string;
+  nama: string;
+  email: string;
+  no_whatsapp: string;
+  instansi: string;
+  screenshot_url: string;
+  qr_code_url: string;
+  qr_token: string;
+  status: 'menunggu' | 'dikonfirmasi' | 'ditolak' | 'hadir';
+  alasan_tolak?: string;
+  wa_terkirim: number;
+  created_at: string;
+  confirmed_at?: string;
+  attended_at?: string;
+}
+
+export function Verifikasi() {
+  const [pendaftar, setPendaftar] = useState<Pendaftar[]>([]);
+  const [filter, setFilter] = useState<string>('semua');
+  const [search, setSearch] = useState('');
+  const [loading, setLoading] = useState(true);
+  const [selectedPendaftar, setSelectedPendaftar] = useState<Pendaftar | null>(null);
+  const [actionLoading, setActionLoading] = useState<string | null>(null);
+
+  useEffect(() => {
+    fetchPendaftar();
+  }, []);
+
+  const fetchPendaftar = async () => {
+    setLoading(true);
+    try {
+      const token = localStorage.getItem('token');
+      const res = await fetch(`${API_URL}/api/admin/pendaftar`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setPendaftar(data.data || []);
+      }
+    } catch (err) {
+      console.error('Failed to fetch:', err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleKonfirmasi = async (id: string) => {
+    setActionLoading(id);
+    try {
+      const token = localStorage.getItem('token');
+      const res = await fetch(`${API_URL}/api/admin/pendaftar/${id}/konfirmasi`, {
+        method: 'PATCH',
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (res.ok) {
+        const data = await res.json();
+        await fetchPendaftar();
+        if (selectedPendaftar && selectedPendaftar.id === id) {
+          setSelectedPendaftar(null);
+        }
+        // Opsional: tanyakan apakah ingin langsung buka WA
+        if (data.wa_url && confirm(`Peserta berhasil dikonfirmasi! Buka WhatsApp untuk mengirim QR ke peserta sekarang?`)) {
+          window.open(data.wa_url, '_blank');
+        }
+      }
+    } catch (err) {
+      console.error('Konfirmasi gagal:', err);
+    } finally {
+      setActionLoading(null);
+    }
+  };
+
+  const handleTolak = async (id: string) => {
+    const alasan = prompt('Masukkan alasan penolakan berkas:');
+    if (alasan === null) return;
+
+    setActionLoading(id);
+    try {
+      const token = localStorage.getItem('token');
+      const res = await fetch(`${API_URL}/api/admin/pendaftar/${id}/tolak`, {
+        method: 'PATCH',
+        headers: {
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ alasan }),
+      });
+      if (res.ok) {
+        await fetchPendaftar();
+        if (selectedPendaftar && selectedPendaftar.id === id) {
+          setSelectedPendaftar(null);
+        }
+      }
+    } catch (err) {
+      console.error('Tolak gagal:', err);
+    } finally {
+      setActionLoading(null);
+    }
+  };
+
+  const handleKirimWA = async (p: Pendaftar) => {
+    const SITE_URL = import.meta.env.VITE_SITE_URL || 'http://localhost:3001';
+    const statusUrl = `${SITE_URL.replace(/\/$/, '')}/status?wa=${encodeURIComponent(p.no_whatsapp)}`;
+    
+    const pesan = `Assalamu'alaikum Kak *${p.nama}*,
+
+Pendaftaran Anda untuk acara *Muslim Scene Event* telah *BERHASIL DIKONFIRMASI* ✅
+
+Silakan akses & unduh QR code kehadiran Anda melalui tautan berikut:
+🔗 ${statusUrl}
+
+Mohon simpan dan tunjukkan tiket QR tersebut kepada panitia di meja registrasi pada hari acara.
+
+Jazakumullah khairan katsiran 🤲
+_Panitia Muslim Scene Event_`;
+
+    let waNumber = p.no_whatsapp.replace(/\D/g, '');
+    if (waNumber.startsWith('0')) {
+      waNumber = '62' + waNumber.substring(1);
+    } else if (waNumber.startsWith('8')) {
+      waNumber = '62' + waNumber;
+    }
+
+    const waUrl = `https://wa.me/${waNumber}?text=${encodeURIComponent(pesan)}`;
+    window.open(waUrl, '_blank');
+
+    // Tandai wa_terkirim di backend
+    try {
+      const token = localStorage.getItem('token');
+      await fetch(`${API_URL}/api/admin/pendaftar/${p.id}/mark-wa-sent`, {
+        method: 'PATCH',
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      setPendaftar((prev) =>
+        prev.map((item) => (item.id === p.id ? { ...item, wa_terkirim: 1 } : item))
+      );
+    } catch (err) {
+      console.error('Gagal update status wa_terkirim:', err);
+    }
+  };
+
+  // Bulk action: Kirim WA ke semua yang terkonfirmasi tapi belum terkirim
+  const handleKirimSemuaWA = () => {
+    const belumKirim = pendaftar.filter((p) => p.status === 'dikonfirmasi' && !p.wa_terkirim);
+    if (belumKirim.length === 0) {
+      alert('Semua peserta yang terkonfirmasi sudah pernah dikirimkan WA.');
+      return;
+    }
+
+    if (confirm(`Akan membuka ${belumKirim.length} tab WhatsApp secara berurutan. Lanjutkan?`)) {
+      belumKirim.forEach((p, idx) => {
+        setTimeout(() => {
+          handleKirimWA(p);
+        }, idx * 600);
+      });
+    }
+  };
+
+  const filtered = pendaftar.filter((p) => {
+    const matchFilter = filter === 'semua' || p.status === filter;
+    const matchSearch =
+      search === '' ||
+      p.nama.toLowerCase().includes(search.toLowerCase()) ||
+      p.no_whatsapp.includes(search) ||
+      (p.instansi && p.instansi.toLowerCase().includes(search.toLowerCase()));
+    return matchFilter && matchSearch;
+  });
+
+  const statusBadge = (status: string) => {
+    const styles: Record<string, string> = {
+      menunggu: 'bg-amber-100 text-amber-800 border border-amber-200',
+      dikonfirmasi: 'bg-emerald-100 text-emerald-800 border border-emerald-200',
+      ditolak: 'bg-rose-100 text-rose-800 border border-rose-200',
+      hadir: 'bg-blue-100 text-blue-800 border border-blue-200',
+    };
+    return styles[status] || 'bg-slate-100 text-slate-800';
+  };
+
+  return (
+    <div className="space-y-6">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div>
+          <h1 className="text-2xl font-black text-slate-900 tracking-tight">Verifikasi Pendaftar</h1>
+          <p className="text-sm text-slate-500">Tinjau tangkapan layar bukti peserta dan konfirmasi kehadiran.</p>
+        </div>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={fetchPendaftar}
+            className="px-4 py-2 bg-white border border-slate-200 rounded-xl text-xs font-semibold text-slate-700 hover:bg-slate-50 transition shadow-xs flex items-center gap-1.5"
+          >
+            <span>🔄</span> Refresh
+          </button>
+          <button
+            onClick={handleKirimSemuaWA}
+            className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-semibold transition shadow-sm flex items-center gap-1.5"
+          >
+            <span>📱</span> Kirim WA Massal
+          </button>
+        </div>
+      </div>
+
+      {/* Filter Tabs & Search */}
+      <div className="flex flex-col md:flex-row gap-3 items-stretch md:items-center justify-between">
+        <div className="flex flex-wrap gap-1.5 bg-slate-200/60 p-1 rounded-xl">
+          {['semua', 'menunggu', 'dikonfirmasi', 'hadir', 'ditolak'].map((f) => (
+            <button
+              key={f}
+              onClick={() => setFilter(f)}
+              className={`px-3.5 py-1.5 rounded-lg text-xs font-bold transition capitalize ${
+                filter === f
+                  ? 'bg-white text-slate-900 shadow-xs'
+                  : 'text-slate-600 hover:text-slate-900'
+              }`}
+            >
+              {f}
+            </button>
+          ))}
+        </div>
+        <div className="relative min-w-[260px]">
+          <input
+            type="text"
+            placeholder="Cari nama, WA, instansi..."
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            className="w-full bg-white border border-slate-200 rounded-xl px-4 py-2 text-xs focus:ring-2 focus:ring-primary-500/20 focus:border-primary-600 outline-none transition"
+          />
+        </div>
+      </div>
+
+      {/* Table Container */}
+      <div className="bg-white rounded-2xl border border-slate-200 shadow-xs overflow-hidden">
+        {loading ? (
+          <div className="text-center py-16 text-slate-400 space-y-2">
+            <div className="inline-block animate-spin rounded-full h-7 w-7 border-3 border-primary-600 border-t-transparent"></div>
+            <p className="text-xs font-medium">Memuat data pendaftar...</p>
+          </div>
+        ) : filtered.length === 0 ? (
+          <div className="text-center py-16 text-slate-400 space-y-1">
+            <p className="text-2xl">📋</p>
+            <p className="text-sm font-semibold text-slate-700">Tidak ada pendaftar ditemukan</p>
+            <p className="text-xs">Coba sesuaikan kata kunci pencarian atau filter status.</p>
+          </div>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full text-left border-collapse">
+              <thead>
+                <tr className="bg-slate-50/80 border-b border-slate-200 text-[11px] font-bold text-slate-500 uppercase tracking-wider">
+                  <th className="px-5 py-3.5">Peserta</th>
+                  <th className="px-5 py-3.5">Kontak WA</th>
+                  <th className="px-5 py-3.5">Instansi</th>
+                  <th className="px-5 py-3.5">Status</th>
+                  <th className="px-5 py-3.5">Notifikasi WA</th>
+                  <th className="px-5 py-3.5 text-right">Aksi</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100 text-xs">
+                {filtered.map((p) => (
+                  <tr key={p.id} className="hover:bg-slate-50/70 transition">
+                    <td className="px-5 py-3.5 font-semibold text-slate-900">
+                      <div>{p.nama}</div>
+                      {p.email && <div className="text-[11px] font-normal text-slate-400">{p.email}</div>}
+                    </td>
+                    <td className="px-5 py-3.5 text-slate-600 font-mono">{p.no_whatsapp}</td>
+                    <td className="px-5 py-3.5 text-slate-600">{p.instansi || '-'}</td>
+                    <td className="px-5 py-3.5">
+                      <span className={`inline-block px-2.5 py-0.5 rounded-full text-[11px] font-bold capitalize ${statusBadge(p.status)}`}>
+                        {p.status}
+                      </span>
+                    </td>
+                    <td className="px-5 py-3.5">
+                      {p.status === 'dikonfirmasi' ? (
+                        p.wa_terkirim ? (
+                          <span className="text-emerald-600 font-semibold text-[11px] flex items-center gap-1">
+                            ✓ Terkirim
+                          </span>
+                        ) : (
+                          <span className="text-amber-600 font-semibold text-[11px] flex items-center gap-1">
+                            ⏳ Belum
+                          </span>
+                        )
+                      ) : (
+                        <span className="text-slate-300">-</span>
+                      )}
+                    </td>
+                    <td className="px-5 py-3.5 text-right">
+                      <div className="flex items-center justify-end gap-1.5">
+                        <button
+                          onClick={() => setSelectedPendaftar(p)}
+                          className="px-2.5 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg text-[11px] font-semibold transition"
+                        >
+                          👁️ Detail
+                        </button>
+
+                        {p.status === 'menunggu' && (
+                          <>
+                            <button
+                              disabled={actionLoading === p.id}
+                              onClick={() => handleKonfirmasi(p.id)}
+                              className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 active:scale-95 text-white rounded-lg text-[11px] font-bold transition shadow-xs disabled:opacity-50"
+                            >
+                              {actionLoading === p.id ? '...' : '✓ ACC'}
+                            </button>
+                            <button
+                              disabled={actionLoading === p.id}
+                              onClick={() => handleTolak(p.id)}
+                              className="px-2.5 py-1.5 bg-rose-50 hover:bg-rose-100 text-rose-700 rounded-lg text-[11px] font-semibold transition disabled:opacity-50"
+                            >
+                              ✕ Tolak
+                            </button>
+                          </>
+                        )}
+
+                        {p.status === 'dikonfirmasi' && (
+                          <button
+                            onClick={() => handleKirimWA(p)}
+                            className={`px-3 py-1.5 rounded-lg text-[11px] font-bold transition flex items-center gap-1 shadow-xs ${
+                              p.wa_terkirim
+                                ? 'bg-slate-100 hover:bg-slate-200 text-slate-700'
+                                : 'bg-emerald-600 hover:bg-emerald-700 text-white'
+                            }`}
+                          >
+                            <span>📱</span>
+                            <span>{p.wa_terkirim ? 'Kirim Ulang' : 'Kirim WA'}</span>
+                          </button>
+                        )}
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
+
+      {/* Modal Detail & Screenshot Viewer */}
+      {selectedPendaftar && (
+        <div className="fixed inset-0 z-50 bg-slate-900/50 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="bg-white rounded-3xl shadow-2xl max-w-lg w-full overflow-hidden border border-slate-200">
+            <div className="p-5 border-b border-slate-100 flex items-center justify-between">
+              <div>
+                <h2 className="text-base font-bold text-slate-900">Detail Bukti Pendaftar</h2>
+                <p className="text-xs text-slate-400">ID: {selectedPendaftar.id}</p>
+              </div>
+              <button
+                onClick={() => setSelectedPendaftar(null)}
+                className="w-8 h-8 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-500 font-bold flex items-center justify-center text-sm"
+              >
+                ✕
+              </button>
+            </div>
+
+            <div className="p-6 space-y-4 max-h-[75vh] overflow-y-auto">
+              {/* Peserta Info */}
+              <div className="grid grid-cols-2 gap-3 bg-slate-50 p-4 rounded-2xl text-xs">
+                <div>
+                  <span className="text-slate-400 font-medium">Nama Peserta:</span>
+                  <p className="font-bold text-slate-800 text-sm mt-0.5">{selectedPendaftar.nama}</p>
+                </div>
+                <div>
+                  <span className="text-slate-400 font-medium">WhatsApp:</span>
+                  <p className="font-bold text-slate-800 font-mono mt-0.5">{selectedPendaftar.no_whatsapp}</p>
+                </div>
+                <div>
+                  <span className="text-slate-400 font-medium">Instansi:</span>
+                  <p className="font-semibold text-slate-700 mt-0.5">{selectedPendaftar.instansi || '-'}</p>
+                </div>
+                <div>
+                  <span className="text-slate-400 font-medium">Status:</span>
+                  <p className="mt-0.5">
+                    <span className={`inline-block px-2 py-0.5 rounded-full text-[10px] font-bold uppercase ${statusBadge(selectedPendaftar.status)}`}>
+                      {selectedPendaftar.status}
+                    </span>
+                  </p>
+                </div>
+              </div>
+
+              {/* Bukti Screenshot */}
+              <div>
+                <span className="text-xs font-bold text-slate-700 block mb-2">Foto / Bukti Screenshot:</span>
+                <div className="bg-slate-900 rounded-2xl overflow-hidden border border-slate-200 flex items-center justify-center p-2 min-h-[220px]">
+                  <img
+                    src={`${API_URL}${selectedPendaftar.screenshot_url}`}
+                    alt="Bukti Screenshot"
+                    className="max-h-80 max-w-full rounded-xl object-contain"
+                    onError={(e) => {
+                      (e.target as HTMLElement).style.display = 'none';
+                      const parent = (e.target as HTMLElement).parentElement;
+                      if (parent) {
+                        parent.innerHTML = '<p class="text-xs text-slate-400 p-8 text-center">Gambar tidak dapat dimuat atau disimpan secara lokal.</p>';
+                      }
+                    }}
+                  />
+                </div>
+              </div>
+            </div>
+
+            {/* Modal Actions */}
+            <div className="p-4 bg-slate-50 border-t border-slate-100 flex items-center justify-end gap-2">
+              <button
+                onClick={() => setSelectedPendaftar(null)}
+                className="px-4 py-2 bg-white border border-slate-200 text-slate-600 rounded-xl text-xs font-semibold hover:bg-slate-100"
+              >
+                Tutup
+              </button>
+
+              {selectedPendaftar.status === 'menunggu' && (
+                <>
+                  <button
+                    onClick={() => handleTolak(selectedPendaftar.id)}
+                    className="px-4 py-2 bg-rose-50 text-rose-700 hover:bg-rose-100 rounded-xl text-xs font-bold"
+                  >
+                    Tolak Berkas
+                  </button>
+                  <button
+                    onClick={() => handleKonfirmasi(selectedPendaftar.id)}
+                    className="px-4 py-2 bg-emerald-600 text-white hover:bg-emerald-700 rounded-xl text-xs font-bold shadow-xs"
+                  >
+                    Setujui & Buat QR Code
+                  </button>
+                </>
+              )}
+
+              {selectedPendaftar.status === 'dikonfirmasi' && (
+                <button
+                  onClick={() => handleKirimWA(selectedPendaftar)}
+                  className="px-4 py-2 bg-emerald-600 text-white hover:bg-emerald-700 rounded-xl text-xs font-bold shadow-xs flex items-center gap-1.5"
+                >
+                  <span>📱</span> Buka WhatsApp
+                </button>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}

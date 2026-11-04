@@ -1,0 +1,235 @@
+---
+import Layout from "../layouts/Layout.astro";
+import Logo from "../components/Logo.astro";
+---
+
+rr
+<Layout title="Beranda Acara">
+  <div class="max-w-5xl mx-auto px-4 py-8 space-y-8">
+    <!-- Hero Banner Card (Sesuai Desain Referensi) -->
+    <section
+      class="relative overflow-hidden rounded-3xl bg-gradient-to-r from-[#06305d] via-[#08407c] to-[#0a529b] text-white p-6 sm:p-12 shadow-xl shadow-slate-900/10"
+    >
+      <!-- Watermark Logo Background di sisi kanan (Desktop) -->
+      <div
+        class="hidden sm:flex absolute right-2 sm:right-8 top-1/2 -translate-y-1/2 w-56 h-56 sm:w-72 sm:h-72 opacity-15 pointer-events-none select-none items-center justify-center"
+      >
+        <Logo variant="white" className="w-full h-full object-contain" />
+      </div>
+
+      <div class="relative z-10 max-w-2xl">
+        <div
+          class="inline-flex items-center gap-2 px-3 py-1 rounded-lg bg-white/15 backdrop-blur-sm border border-white/20 text-xs font-bold text-sky-200 mb-4"
+        >
+          <span>✨</span>
+          <span>Portal Pendaftaran Resmi</span>
+        </div>
+
+        <h1
+          class="text-3xl sm:text-5xl font-black tracking-tight text-white mb-3"
+        >
+          Muslim Scene
+        </h1>
+
+        <p
+          class="text-xs sm:text-base text-white/80 leading-relaxed font-normal mb-6 sm:mb-8"
+        >
+          Sistem pendaftaran kegiatan, registrasi kehadiran digital, dan
+          penerbitan tiket QR Code mandiri resmi Muslim Scene.
+        </p>
+
+        <!-- Glassmorphism Stat Cards -->
+        <div class="grid grid-cols-2 sm:grid-cols-3 gap-2.5 sm:gap-3 mb-6 sm:mb-8">
+          <div
+            class="bg-white/10 backdrop-blur-md border border-white/15 rounded-2xl p-3 sm:p-4"
+          >
+            <div
+              class="flex items-center gap-1.5 text-xs text-sky-200 font-medium mb-1"
+            >
+              <span>👥</span>
+              <span>KUOTA ACARA</span>
+            </div>
+            <div class="text-xl sm:text-2xl font-black">Terbuka</div>
+          </div>
+
+          <div
+            class="bg-white/10 backdrop-blur-md border border-white/15 rounded-2xl p-3 sm:p-4"
+          >
+            <div
+              class="flex items-center gap-1.5 text-xs text-sky-200 font-medium mb-1"
+            >
+              <span>⚡</span>
+              <span>TIKET QR</span>
+            </div>
+            <div class="text-xl sm:text-2xl font-black">Instan</div>
+          </div>
+
+          <div
+            class="col-span-2 sm:col-span-1 bg-white/10 backdrop-blur-md border border-white/15 rounded-2xl p-3 sm:p-4"
+          >
+            <div
+              class="flex items-center gap-1.5 text-xs text-sky-200 font-medium mb-1"
+            >
+              <span>📱</span>
+              <span>NOTIFIKASI</span>
+            </div>
+            <div class="text-xl sm:text-2xl font-black">WhatsApp</div>
+          </div>
+        </div>
+
+        <!-- CTA Buttons & Mobile Logo Badge -->
+        <div class="flex items-center justify-between gap-3 pt-1">
+          <div class="flex flex-col sm:flex-row gap-2.5 sm:gap-3 flex-1 sm:flex-initial">
+            <a
+              href="/daftar"
+              class="bg-white hover:bg-sky-50 text-[#07407b] font-black px-5 py-3 sm:px-6 sm:py-3.5 rounded-xl transition duration-150 shadow-md text-xs sm:text-sm flex items-center justify-center gap-2"
+            >
+              <span>Daftar Sekarang</span>
+              <span>→</span>
+            </a>
+            <a
+              href="/status"
+              class="bg-sky-400/20 hover:bg-sky-400/30 text-white font-bold px-5 py-3 sm:px-6 sm:py-3.5 rounded-xl transition duration-150 border border-white/20 text-xs sm:text-sm flex items-center justify-center gap-2"
+            >
+              <span>🔍</span>
+              <span>Cek Status & Tiket QR</span>
+            </a>
+          </div>
+
+          <!-- Logo Muslim Scene Khusus Mobile di samping tombol (mengisi area yang sebelumnya kosong) -->
+          <div
+            class="flex sm:hidden flex-col items-center justify-center self-stretch w-20 rounded-2xl bg-white/10 backdrop-blur-md border border-white/15 shadow-inner p-2 text-center shrink-0"
+          >
+            <Logo variant="white" className="w-9 h-9 object-contain drop-shadow" />
+            <span class="text-[9px] font-extrabold text-sky-200 mt-1 uppercase tracking-wider leading-tight">
+              Muslim Scene
+            </span>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Bar Informasi Legalitas & Profil (Sesuai Referensi Gambar) -->
+    <section class="grid sm:grid-cols-2 gap-4">
+      <div
+        class="bg-white rounded-2xl p-5 border border-slate-200 shadow-xs flex items-center gap-4"
+      >
+        <div
+          class="w-12 h-12 rounded-xl bg-primary-50 text-primary-700 flex items-center justify-center text-xl font-bold"
+        >
+          🏛️
+        </div>
+        <div>
+          <div
+            class="inline-block px-2 py-0.5 bg-slate-100 text-slate-700 font-extrabold text-[10px] uppercase rounded tracking-wider"
+          >
+            Profil Yayasan
+          </div>
+          <h2 class="text-sm font-bold text-slate-900 mt-0.5">
+            Muslim Scene Official
+          </h2>
+          <p class="text-xs text-slate-500">
+            Menebar kebaikan & dakwah kreatif untuk generasi muda.
+          </p>
+        </div>
+      </div>
+
+      <div
+        class="bg-white rounded-2xl p-5 border border-slate-200 shadow-xs flex items-center gap-4"
+      >
+        <div
+          class="w-12 h-12 rounded-xl bg-emerald-50 text-emerald-700 flex items-center justify-center text-xl font-bold"
+        >
+          🛡️
+        </div>
+        <div>
+          <div
+            class="inline-block px-2 py-0.5 bg-emerald-100 text-emerald-800 font-extrabold text-[10px] uppercase rounded tracking-wider"
+          >
+            Legalitas Resmi Kemenkumham
+          </div>
+          <h2 class="text-sm font-bold text-slate-900 mt-0.5">
+            AHU-0008738.AH.01.04.Tahun 2023
+          </h2>
+          <p class="text-xs text-slate-500">
+            Terdaftar dan beroperasi secara legal & akuntabel.
+          </p>
+        </div>
+      </div>
+    </section>
+
+    <!-- 4 Langkah Alur Pendaftaran -->
+    <section
+      class="bg-white rounded-3xl p-6 sm:p-8 border border-slate-200 shadow-xs space-y-6"
+    >
+      <div class="border-b border-slate-100 pb-4">
+        <div
+          class="inline-block px-2.5 py-1 bg-sky-100 text-primary-800 font-extrabold text-xs uppercase tracking-wider rounded-md mb-1"
+        >
+          Panduan Registrasi
+        </div>
+        <h2 class="text-xl font-extrabold text-slate-900">
+          Alur Pendaftaran & Tiket Kehadiran
+        </h2>
+      </div>
+
+      <div class="grid sm:grid-cols-4 gap-4">
+        <div
+          class="bg-slate-50/80 rounded-2xl p-5 border border-slate-200/80 space-y-2"
+        >
+          <div
+            class="w-8 h-8 rounded-lg bg-primary-700 text-white font-black text-xs flex items-center justify-center"
+          >
+            1
+          </div>
+          <h3 class="font-bold text-slate-900 text-sm">Isi Biodata</h3>
+          <p class="text-xs text-slate-500 leading-relaxed">
+            Lengkapi nama lengkap dan nomor WhatsApp aktif Anda.
+          </p>
+        </div>
+
+        <div
+          class="bg-slate-50/80 rounded-2xl p-5 border border-slate-200/80 space-y-2"
+        >
+          <div
+            class="w-8 h-8 rounded-lg bg-primary-700 text-white font-black text-xs flex items-center justify-center"
+          >
+            2
+          </div>
+          <h3 class="font-bold text-slate-900 text-sm">Unggah Foto</h3>
+          <p class="text-xs text-slate-500 leading-relaxed">
+            Upload tangkapan layar bukti persyaratan (kompresi otomatis).
+          </p>
+        </div>
+
+        <div
+          class="bg-slate-50/80 rounded-2xl p-5 border border-slate-200/80 space-y-2"
+        >
+          <div
+            class="w-8 h-8 rounded-lg bg-primary-700 text-white font-black text-xs flex items-center justify-center"
+          >
+            3
+          </div>
+          <h3 class="font-bold text-slate-900 text-sm">Verifikasi Panitia</h3>
+          <p class="text-xs text-slate-500 leading-relaxed">
+            Panitia menyetujui berkas melalui panel admin khusus.
+          </p>
+        </div>
+
+        <div
+          class="bg-slate-50/80 rounded-2xl p-5 border border-slate-200/80 space-y-2"
+        >
+          <div
+            class="w-8 h-8 rounded-lg bg-emerald-600 text-white font-black text-xs flex items-center justify-center"
+          >
+            4
+          </div>
+          <h3 class="font-bold text-slate-900 text-sm">Scan di Lokasi</h3>
+          <p class="text-xs text-slate-500 leading-relaxed">
+            Tunjukkan QR Code di meja registrasi pada hari acara.
+          </p>
+        </div>
+      </div>
+    </section>
+  </div>
+</Layout>
