@@ -178,9 +178,9 @@ export function Verifikasi() {
 Pendaftaran Anda untuk acara *Muslim Scene Event* telah *BERHASIL DIKONFIRMASI* ✅
 
 Silakan akses & unduh QR code kehadiran Anda melalui tautan berikut:
-🔗 https://ms-evenscan-admin.pages.dev/status
+🔗 https://ms-evenscan-peserta.pages.dev/status
 
-(${kodeAkses})
+*${kodeAkses}*
 
 _*Masukkan kode akses pada halaman tersebut untuk melihat & download QR code*_
 

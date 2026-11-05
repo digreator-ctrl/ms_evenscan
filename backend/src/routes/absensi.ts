@@ -14,7 +14,16 @@ export const absensiRoutes = new Hono<{ Bindings: Bindings }>();
 absensiRoutes.get('/stats', async (c) => {
   const db = c.env.DB;
   if (!db) {
-    return c.json({ total: 0, menunggu: 0, dikonfirmasi: 0, hadir: 0, ditolak: 0 });
+    return c.json({
+      total: 0,
+      menunggu: 0,
+      dikonfirmasi: 0,
+      ditolak: 0,
+      hadir: 0,
+      sudah_hadir: 0,
+      belum_hadir: 0,
+      persentase_kehadiran: 0,
+    });
   }
 
   try {
@@ -23,22 +32,41 @@ absensiRoutes.get('/stats', async (c) => {
         `SELECT
            COUNT(*) as total,
            COALESCE(SUM(CASE WHEN status = 'menunggu' THEN 1 ELSE 0 END), 0) as menunggu,
-           COALESCE(SUM(CASE WHEN status = 'dikonfirmasi' THEN 1 ELSE 0 END), 0) as dikonfirmasi,
-           COALESCE(SUM(CASE WHEN status = 'hadir' THEN 1 ELSE 0 END), 0) as hadir,
-           COALESCE(SUM(CASE WHEN status = 'ditolak' THEN 1 ELSE 0 END), 0) as ditolak
+           COALESCE(SUM(CASE WHEN status IN ('dikonfirmasi', 'hadir') THEN 1 ELSE 0 END), 0) as dikonfirmasi,
+           COALESCE(SUM(CASE WHEN status = 'ditolak' THEN 1 ELSE 0 END), 0) as ditolak,
+           COALESCE(SUM(CASE WHEN status = 'hadir' THEN 1 ELSE 0 END), 0) as sudah_hadir,
+           COALESCE(SUM(CASE WHEN status = 'dikonfirmasi' THEN 1 ELSE 0 END), 0) as belum_hadir
          FROM pendaftar`
       )
       .first<{
         total: number;
         menunggu: number;
         dikonfirmasi: number;
-        hadir: number;
         ditolak: number;
+        sudah_hadir: number;
+        belum_hadir: number;
       }>();
 
-    return c.json(
-      stats || { total: 0, menunggu: 0, dikonfirmasi: 0, hadir: 0, ditolak: 0 }
-    );
+    const total = stats?.total || 0;
+    const menunggu = stats?.menunggu || 0;
+    const dikonfirmasi = stats?.dikonfirmasi || 0;
+    const ditolak = stats?.ditolak || 0;
+    const sudah_hadir = stats?.sudah_hadir || 0;
+    const belum_hadir = stats?.belum_hadir || Math.max(0, dikonfirmasi - sudah_hadir);
+    const persentase_kehadiran = dikonfirmasi > 0
+      ? Math.min(100, Math.max(0, Math.round((sudah_hadir / dikonfirmasi) * 100)))
+      : 0;
+
+    return c.json({
+      total,
+      menunggu,
+      dikonfirmasi,
+      ditolak,
+      hadir: sudah_hadir,
+      sudah_hadir,
+      belum_hadir,
+      persentase_kehadiran,
+    });
   } catch (err: any) {
     console.error('Error stats absensi:', err);
     return c.json({ error: 'Gagal memuat statistik: ' + err.message }, 500);
