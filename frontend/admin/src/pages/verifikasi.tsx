@@ -161,16 +161,26 @@ export function Verifikasi() {
   };
 
   const handleKirimWA = async (p: Pendaftar) => {
+    const nipVal = getNIP(p) !== '-' ? getNIP(p) : '';
+    const nipUpper = nipVal.toUpperCase();
+    const isIkhwan = p.jenis_kelamin?.toLowerCase() === 'ikhwan' || nipUpper.startsWith('ARN') || (p.instansi || '').toLowerCase().includes('ikhwan');
+    const isAkhwat = p.jenis_kelamin?.toLowerCase() === 'akhwat' || nipUpper.startsWith('ART') || (p.instansi || '').toLowerCase().includes('akhwat');
+    const sapaan = isIkhwan ? 'Bapak/Mas' : isAkhwat ? 'Ibu/Mbak' : 'Bapak/Ibu/Mas/Mbak';
+
+    const cleanWa = p.no_whatsapp.replace(/\D/g, '');
+    const wa4 = cleanWa.slice(-4);
+    const kodeAkses = `${nipVal}${wa4}`;
+
     const pesan = `بسم الله
 السلام عليكم ورحمة الله وبركاته
- Selamat Datang Bapak/Ibu/Mas/Mbak ${p.nama},
+ Selamat Datang ${sapaan} ${p.nama},
 
 Pendaftaran Anda untuk acara *Muslim Scene Event* telah *BERHASIL DIKONFIRMASI* ✅
 
 Silakan akses & unduh QR code kehadiran Anda melalui tautan berikut:
 🔗 https://ms-evenscan-admin.pages.dev/status
 
-(NIP + 4 digit terakhir no WA)
+(${kodeAkses})
 
 _*Masukkan kode akses pada halaman tersebut untuk melihat & download QR code*_
 

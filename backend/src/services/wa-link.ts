@@ -25,21 +25,34 @@ export class WALinkService {
     namaPeserta: string;
     siteUrl: string;
     namaAcara?: string;
+    jenisKelamin?: string;
+    nip?: string;
   }): string {
-    const { phoneNumber, namaPeserta, siteUrl, namaAcara = 'Muslim Scene Event' } = params;
+    const { phoneNumber, namaPeserta, siteUrl, namaAcara = 'Muslim Scene Event', jenisKelamin, nip } = params;
     const cleanPhone = this.normalizePhoneNumber(phoneNumber);
-    const cekStatusUrl = `${siteUrl.replace(/\/$/, '')}/status`;
+
+    const nipStr = (nip || '').trim();
+    const matchNip = nipStr.match(/NIP:\s*([A-Za-z0-9\-\/]+)/i);
+    const nipVal = matchNip ? matchNip[1].trim() : (nipStr !== '-' ? nipStr : '');
+    const nipUpper = nipVal.toUpperCase();
+
+    const isIkhwan = jenisKelamin?.toLowerCase() === 'ikhwan' || nipUpper.startsWith('ARN');
+    const isAkhwat = jenisKelamin?.toLowerCase() === 'akhwat' || nipUpper.startsWith('ART');
+    const sapaan = isIkhwan ? 'Bapak/Mas' : isAkhwat ? 'Ibu/Mbak' : 'Bapak/Ibu/Mas/Mbak';
+
+    const wa4 = cleanPhone.slice(-4);
+    const kodeAkses = `${nipVal}${wa4}`;
 
     const pesan = `بسم الله
 السلام عليكم ورحمة الله وبركاته
- Selamat Datang Bapak/Ibu/Mas/Mbak ${namaPeserta},
+ Selamat Datang ${sapaan} ${namaPeserta},
 
 Pendaftaran Anda untuk acara *${namaAcara}* telah *BERHASIL DIKONFIRMASI* ✅
 
 Silakan akses & unduh QR code kehadiran Anda melalui tautan berikut:
 🔗 https://ms-evenscan-admin.pages.dev/status
 
-(NIP + 4 digit terakhir no WA)
+(${kodeAkses})
 
 _*Masukkan kode akses pada halaman tersebut untuk melihat & download QR code*_
 

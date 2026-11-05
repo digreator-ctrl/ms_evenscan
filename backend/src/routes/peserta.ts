@@ -150,12 +150,22 @@ pesertaRoutes.get('/status', async (c) => {
     return c.json({ error: 'Database D1 tidak terhubung' }, 500);
   }
 
-  const nip = c.req.query('nip')?.trim();
-  const wa4 = c.req.query('wa4')?.trim();
+  const kode = c.req.query('kode')?.trim();
+  let nip = c.req.query('nip')?.trim();
+  let wa4 = c.req.query('wa4')?.trim();
   const wa = c.req.query('wa')?.trim();
 
+  // Jika parameter 'kode' diberikan (gabungan NIP + 4 digit terakhir nomor WA)
+  if (kode) {
+    const cleanKode = kode.replace(/[()]/g, '').trim();
+    if (cleanKode.length >= 5) {
+      wa4 = cleanKode.slice(-4);
+      nip = cleanKode.slice(0, -4).trim();
+    }
+  }
+
   if (!nip && !wa4 && !wa) {
-    return c.json({ error: 'Parameter NIP dan 4 digit terakhir WhatsApp (?nip=...&wa4=...) diperlukan' }, 400);
+    return c.json({ error: 'Parameter kode akses tiket (?kode=...) atau NIP & 4 digit WhatsApp diperlukan' }, 400);
   }
 
   try {
@@ -284,6 +294,7 @@ pesertaRoutes.get('/qr/:token', async (c) => {
           'Content-Type': 'image/svg+xml; charset=utf-8',
           'Cache-Control': 'public, max-age=86400',
           'Content-Disposition': `inline; filename="qr-${token}.svg"`,
+          'Access-Control-Allow-Origin': '*',
         },
       });
     }
@@ -297,6 +308,7 @@ pesertaRoutes.get('/qr/:token', async (c) => {
         'Content-Type': 'image/png',
         'Cache-Control': 'public, max-age=86400',
         'Content-Disposition': `inline; filename="qr-${token}.png"`,
+        'Access-Control-Allow-Origin': '*',
       },
     });
   } catch (err: any) {
@@ -310,6 +322,7 @@ pesertaRoutes.get('/qr/:token', async (c) => {
           'Content-Type': 'image/svg+xml; charset=utf-8',
           'Cache-Control': 'public, max-age=86400',
           'Content-Disposition': `inline; filename="qr-${token}.svg"`,
+          'Access-Control-Allow-Origin': '*',
         },
       });
     } catch {

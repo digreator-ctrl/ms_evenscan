@@ -204,6 +204,9 @@ adminRoutes.patch('/pendaftar/:id/konfirmasi', async (c) => {
         no_whatsapp: string;
         qr_token: string | null;
         status: string;
+        jenis_kelamin?: string;
+        nip?: string;
+        instansi?: string;
       }>();
 
     if (!pendaftar) {
@@ -231,6 +234,8 @@ adminRoutes.patch('/pendaftar/:id/konfirmasi', async (c) => {
     const waUrl = WALinkService.generateLink({
       phoneNumber: pendaftar.no_whatsapp,
       namaPeserta: pendaftar.nama,
+      jenisKelamin: pendaftar.jenis_kelamin,
+      nip: pendaftar.nip || pendaftar.instansi,
       siteUrl,
     });
 
