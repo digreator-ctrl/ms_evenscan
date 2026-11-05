@@ -69,12 +69,12 @@ flowchart TD
 
 ---
 
-### **Fase 5: Deployment Frontend Peserta (Cloudflare Pages)** *(TAHAP BERIKUTNYA 🚀)*
-- [ ] Konfigurasikan environment variable `PUBLIC_API_URL` mengarah ke `https://ms-evenscan-api.digreator.workers.dev`.
-- [ ] Build bundel produksi frontend peserta: `npm --prefix frontend/peserta run build`.
-- [ ] Buat project Cloudflare Pages `ms-evenscan-peserta`.
-- [ ] Deploy frontend peserta ke Cloudflare Pages (`https://ms-evenscan-peserta.pages.dev`).
-- [ ] Uji alur pendaftaran peserta, upload foto bukti transfer ke R2, dan cek status tiket QR di URL live Pages.
+### **Fase 5: Deployment Frontend Peserta (Cloudflare Pages)** *(SELESAI ✅)*
+- [x] Konfigurasikan environment variable `PUBLIC_API_URL` mengarah ke `https://ms-evenscan-api.digreator.workers.dev`.
+- [x] Build bundel produksi frontend peserta: `npm --prefix frontend/peserta run build`.
+- [x] Buat project Cloudflare Pages `ms-evenscan-peserta` (`--production-branch=main`).
+- [x] Deploy frontend peserta ke Cloudflare Pages (`https://ms-evenscan-peserta.pages.dev`).
+- [x] Uji alur pendaftaran peserta, upload foto bukti transfer ke R2, dan cek status tiket QR di URL live Pages (Status HTTP 200 OK & integrasi API aktif).
 
 ---
 
@@ -86,4 +86,4 @@ flowchart TD
 | **Storage R2** | `evenscan-files` | `STORAGE` | Cloudflare R2 | Bucket bukti transfer & QR Code |
 | **Backend Worker** | `ms-evenscan-api` | - | `https://ms-evenscan-api.digreator.workers.dev` | Live REST API Workers |
 | **Frontend Admin** | `ms-evenscan-admin` | - | `https://ms-evenscan-admin.pages.dev` | Dashboard Admin Live |
-| **Frontend Peserta** | `ms-evenscan-peserta`| - | Cloudflare Pages (Pending) | Web publik pendaftaran & tiket |
+| **Frontend Peserta** | `ms-evenscan-peserta`| - | `https://ms-evenscan-peserta.pages.dev` | Web publik pendaftaran & tiket live |
