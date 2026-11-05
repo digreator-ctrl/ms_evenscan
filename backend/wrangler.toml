@@ -1,6 +1,7 @@
 name = "ms-evenscan-api"
 main = "src/index.ts"
 compatibility_date = "2024-11-01"
+account_id = "d36c92886485e286195dee9406901c37"
 
 [vars]
 ENVIRONMENT = "development"
