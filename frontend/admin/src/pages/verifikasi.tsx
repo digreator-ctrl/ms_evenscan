@@ -27,12 +27,27 @@ export function Verifikasi() {
   const [selectedPendaftar, setSelectedPendaftar] = useState<Pendaftar | null>(null);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
 
+  // Auto-refresh: Pertama kali mount + polling interval berkala (setiap 5 detik) + saat tab browser difokuskan
   useEffect(() => {
-    fetchPendaftar();
+    fetchPendaftar(false);
+
+    // Polling background setiap 5 detik agar data pendaftar baru atau pembaruan status langsung diperbarui otomatis tanpa tombol manual
+    const interval = setInterval(() => {
+      fetchPendaftar(true);
+    }, 5000);
+
+    // Refresh saat window browser aktif kembali
+    const handleFocus = () => fetchPendaftar(true);
+    window.addEventListener('focus', handleFocus);
+
+    return () => {
+      clearInterval(interval);
+      window.removeEventListener('focus', handleFocus);
+    };
   }, []);
 
-  const fetchPendaftar = async () => {
-    setLoading(true);
+  const fetchPendaftar = async (silent = false) => {
+    if (!silent) setLoading(true);
     try {
       const token = localStorage.getItem('token');
       const res = await fetch(`${API_URL}/api/admin/pendaftar`, {
@@ -45,7 +60,7 @@ export function Verifikasi() {
     } catch (err) {
       console.error('Failed to fetch:', err);
     } finally {
-      setLoading(false);
+      if (!silent) setLoading(false);
     }
   };
 
@@ -59,7 +74,7 @@ export function Verifikasi() {
       });
       if (res.ok) {
         const data = await res.json();
-        await fetchPendaftar();
+        await fetchPendaftar(true);
         if (selectedPendaftar && selectedPendaftar.id === id) {
           setSelectedPendaftar(null);
         }
@@ -91,7 +106,7 @@ export function Verifikasi() {
         body: JSON.stringify({ alasan }),
       });
       if (res.ok) {
-        await fetchPendaftar();
+        await fetchPendaftar(true);
         if (selectedPendaftar && selectedPendaftar.id === id) {
           setSelectedPendaftar(null);
         }
@@ -190,14 +205,9 @@ _Panitia Muslim Scene Event_`;
         </div>
         <div className="flex items-center gap-2">
           <button
-            onClick={fetchPendaftar}
-            className="px-4 py-2 bg-white border border-slate-200 rounded-xl text-xs font-semibold text-slate-700 hover:bg-slate-50 transition shadow-xs flex items-center gap-1.5"
-          >
-            <span>🔄</span> Refresh
-          </button>
-          <button
+            type="button"
             onClick={handleKirimSemuaWA}
-            className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-semibold transition shadow-sm flex items-center gap-1.5"
+            className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-semibold transition shadow-sm flex items-center gap-1.5 cursor-pointer"
           >
             <span>📱</span> Kirim WA Massal
           </button>
@@ -211,7 +221,7 @@ _Panitia Muslim Scene Event_`;
             <button
               key={f}
               onClick={() => setFilter(f)}
-              className={`px-3.5 py-1.5 rounded-lg text-xs font-bold transition capitalize ${
+              className={`px-3.5 py-1.5 rounded-lg text-xs font-bold transition capitalize cursor-pointer ${
                 filter === f
                   ? 'bg-white text-slate-900 shadow-xs'
                   : 'text-slate-600 hover:text-slate-900'
@@ -227,7 +237,7 @@ _Panitia Muslim Scene Event_`;
             placeholder="Cari nama, WA, instansi..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            className="w-full bg-white border border-slate-200 rounded-xl px-4 py-2 text-xs focus:ring-2 focus:ring-primary-500/20 focus:border-primary-600 outline-none transition"
+            className="w-full bg-white border border-slate-200 rounded-xl px-4 py-2 text-xs focus:ring-2 focus:ring-[#06305d]/20 focus:border-[#06305d] outline-none transition"
           />
         </div>
       </div>
@@ -236,7 +246,7 @@ _Panitia Muslim Scene Event_`;
       <div className="bg-white rounded-2xl border border-slate-200 shadow-xs overflow-hidden">
         {loading ? (
           <div className="text-center py-16 text-slate-400 space-y-2">
-            <div className="inline-block animate-spin rounded-full h-7 w-7 border-3 border-primary-600 border-t-transparent"></div>
+            <div className="inline-block animate-spin rounded-full h-7 w-7 border-3 border-[#06305d] border-t-transparent"></div>
             <p className="text-xs font-medium">Memuat data pendaftar...</p>
           </div>
         ) : filtered.length === 0 ? (
@@ -290,8 +300,9 @@ _Panitia Muslim Scene Event_`;
                     <td className="px-5 py-3.5 text-right">
                       <div className="flex items-center justify-end gap-1.5">
                         <button
+                          type="button"
                           onClick={() => setSelectedPendaftar(p)}
-                          className="px-2.5 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg text-[11px] font-semibold transition"
+                          className="px-2.5 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg text-[11px] font-semibold transition cursor-pointer"
                         >
                           👁️ Detail
                         </button>
@@ -299,16 +310,18 @@ _Panitia Muslim Scene Event_`;
                         {p.status === 'menunggu' && (
                           <>
                             <button
+                              type="button"
                               disabled={actionLoading === p.id}
                               onClick={() => handleKonfirmasi(p.id)}
-                              className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 active:scale-95 text-white rounded-lg text-[11px] font-bold transition shadow-xs disabled:opacity-50"
+                              className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 active:scale-95 text-white rounded-lg text-[11px] font-bold transition shadow-xs disabled:opacity-50 cursor-pointer"
                             >
                               {actionLoading === p.id ? '...' : '✓ ACC'}
                             </button>
                             <button
+                              type="button"
                               disabled={actionLoading === p.id}
                               onClick={() => handleTolak(p.id)}
-                              className="px-2.5 py-1.5 bg-rose-50 hover:bg-rose-100 text-rose-700 rounded-lg text-[11px] font-semibold transition disabled:opacity-50"
+                              className="px-2.5 py-1.5 bg-rose-50 hover:bg-rose-100 text-rose-700 rounded-lg text-[11px] font-semibold transition disabled:opacity-50 cursor-pointer"
                             >
                               ✕ Tolak
                             </button>
@@ -317,8 +330,9 @@ _Panitia Muslim Scene Event_`;
 
                         {p.status === 'dikonfirmasi' && (
                           <button
+                            type="button"
                             onClick={() => handleKirimWA(p)}
-                            className={`px-3 py-1.5 rounded-lg text-[11px] font-bold transition flex items-center gap-1 shadow-xs ${
+                            className={`px-3 py-1.5 rounded-lg text-[11px] font-bold transition flex items-center gap-1 shadow-xs cursor-pointer ${
                               p.wa_terkirim
                                 ? 'bg-slate-100 hover:bg-slate-200 text-slate-700'
                                 : 'bg-emerald-600 hover:bg-emerald-700 text-white'
@@ -348,8 +362,9 @@ _Panitia Muslim Scene Event_`;
                 <p className="text-xs text-slate-400">ID: {selectedPendaftar.id}</p>
               </div>
               <button
+                type="button"
                 onClick={() => setSelectedPendaftar(null)}
-                className="w-8 h-8 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-500 font-bold flex items-center justify-center text-sm"
+                className="w-8 h-8 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-500 font-bold flex items-center justify-center text-sm cursor-pointer"
               >
                 ✕
               </button>
@@ -403,8 +418,9 @@ _Panitia Muslim Scene Event_`;
             {/* Modal Actions */}
             <div className="p-4 bg-slate-50 border-t border-slate-100 flex items-center justify-end gap-2">
               <button
+                type="button"
                 onClick={() => setSelectedPendaftar(null)}
-                className="px-4 py-2 bg-white border border-slate-200 text-slate-600 rounded-xl text-xs font-semibold hover:bg-slate-100"
+                className="px-4 py-2 bg-white border border-slate-200 text-slate-600 rounded-xl text-xs font-semibold hover:bg-slate-100 cursor-pointer"
               >
                 Tutup
               </button>
@@ -412,14 +428,16 @@ _Panitia Muslim Scene Event_`;
               {selectedPendaftar.status === 'menunggu' && (
                 <>
                   <button
+                    type="button"
                     onClick={() => handleTolak(selectedPendaftar.id)}
-                    className="px-4 py-2 bg-rose-50 text-rose-700 hover:bg-rose-100 rounded-xl text-xs font-bold"
+                    className="px-4 py-2 bg-rose-50 text-rose-700 hover:bg-rose-100 rounded-xl text-xs font-bold cursor-pointer"
                   >
                     Tolak Berkas
                   </button>
                   <button
+                    type="button"
                     onClick={() => handleKonfirmasi(selectedPendaftar.id)}
-                    className="px-4 py-2 bg-emerald-600 text-white hover:bg-emerald-700 rounded-xl text-xs font-bold shadow-xs"
+                    className="px-4 py-2 bg-emerald-600 text-white hover:bg-emerald-700 rounded-xl text-xs font-bold shadow-xs cursor-pointer"
                   >
                     Setujui & Buat QR Code
                   </button>
@@ -428,8 +446,9 @@ _Panitia Muslim Scene Event_`;
 
               {selectedPendaftar.status === 'dikonfirmasi' && (
                 <button
+                  type="button"
                   onClick={() => handleKirimWA(selectedPendaftar)}
-                  className="px-4 py-2 bg-emerald-600 text-white hover:bg-emerald-700 rounded-xl text-xs font-bold shadow-xs flex items-center gap-1.5"
+                  className="px-4 py-2 bg-emerald-600 text-white hover:bg-emerald-700 rounded-xl text-xs font-bold shadow-xs flex items-center gap-1.5 cursor-pointer"
                 >
                   <span>📱</span> Buka WhatsApp
                 </button>

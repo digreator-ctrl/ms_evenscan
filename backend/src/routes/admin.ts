@@ -362,9 +362,8 @@ adminRoutes.post('/users', async (c) => {
     return c.json({ error: 'Password minimal 6 karakter' }, 400);
   }
 
-  const validRoles = ['superadmin', 'panitia', 'scanner'];
-  if (!validRoles.includes(role)) {
-    return c.json({ error: 'Role tidak valid. Pilihan: superadmin, panitia, scanner' }, 400);
+  if (!role || role.length < 2) {
+    return c.json({ error: 'Role wajib diisi (minimal 2 karakter)' }, 400);
   }
 
   try {

@@ -9,7 +9,7 @@ JWT_SECRET = "change-this-in-production"
 [[d1_databases]]
 binding = "DB"
 database_name = "evenscan-db"
-database_id = "placeholder-change-after-create"
+database_id = "a6c9a62f-eeb7-4947-b1ae-8a2b26042331"
 
 [[r2_buckets]]
 binding = "STORAGE"

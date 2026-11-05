@@ -4,8 +4,8 @@ VALUES (
     'admin_default',
     'admin',
     'admin123', -- Catatan: endpoint login juga memiliki fallback bawaan untuk user 'admin' & 'admin123'
-    'Administrator Panitia',
-    'panitia'
+    'Administrator Muslim Scene',
+    'superadmin'
 );
 
 -- Contoh data pendaftar simulasi untuk testing
@@ -33,4 +33,3 @@ VALUES
     'menunggu',
     0
 );
-

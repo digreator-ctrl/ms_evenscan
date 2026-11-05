@@ -7,37 +7,173 @@ interface AdminUser {
   id: string;
   username: string;
   nama: string;
-  role: 'superadmin' | 'panitia' | 'scanner';
+  role: string;
   created_at?: string;
 }
+
+export interface RolePermission {
+  id: string;
+  nama: string;
+  deskripsi: string;
+  kategori: string;
+}
+
+export interface RoleDefinition {
+  id: string;
+  nama: string;
+  deskripsi: string;
+  isSystem: boolean;
+  warna: 'purple' | 'sky' | 'amber' | 'emerald' | 'indigo' | 'rose';
+  permissions: string[];
+}
+
+export const SYSTEM_PERMISSIONS: RolePermission[] = [
+  {
+    id: 'dashboard',
+    nama: 'Dashboard & Statistik',
+    deskripsi: 'Melihat grafik pendaftar, rasio kehadiran, & ringkasan kuota acara.',
+    kategori: 'Analitik & Ringkasan',
+  },
+  {
+    id: 'verifikasi',
+    nama: 'Verifikasi Berkas & Tiket WhatsApp',
+    deskripsi: 'Memeriksa bukti transfer, konfirmasi validitas pembayaran, dan trigger kirim tiket WhatsApp otomatis.',
+    kategori: 'Operasional Registrasi',
+  },
+  {
+    id: 'scanner',
+    nama: 'Fast Action Scanner Kamera QR',
+    deskripsi: 'Memindai QR code tiket peserta menggunakan kamera perangkat di pintu masuk venue.',
+    kategori: 'Presensi Acara',
+  },
+  {
+    id: 'riwayat',
+    nama: 'Riwayat Scan Peserta (History Log)',
+    deskripsi: 'Melihat rekap waktu dan data peserta yang telah sukses melakukan scan presensi.',
+    kategori: 'Presensi Acara',
+  },
+  {
+    id: 'rbac',
+    nama: 'Manajemen Pengguna & RBAC',
+    deskripsi: 'Menambah admin panitia baru, mengelola peran (role), dan konfigurasi matriks izin sistem.',
+    kategori: 'Administrasi Sistem',
+  },
+];
+
+export const DEFAULT_ROLES: RoleDefinition[] = [
+  {
+    id: 'superadmin',
+    nama: 'Superadmin',
+    deskripsi: 'Akses administrator tertinggi dengan wewenang mutlak atas seluruh modul dan manajemen RBAC.',
+    isSystem: true,
+    warna: 'purple',
+    permissions: ['dashboard', 'verifikasi', 'scanner', 'riwayat', 'rbac'],
+  },
+  {
+    id: 'panitia',
+    nama: 'Panitia Registrasi',
+    deskripsi: 'Petugas meja verifikasi untuk validasi bukti transfer tiket, kirim WhatsApp, dan scan presensi.',
+    isSystem: true,
+    warna: 'sky',
+    permissions: ['dashboard', 'verifikasi', 'scanner', 'riwayat'],
+  },
+  {
+    id: 'scanner',
+    nama: 'Petugas Scanner',
+    deskripsi: 'Petugas pintu masuk venue acara yang difokuskan untuk scan presensi QR code tiket secara cepat.',
+    isSystem: true,
+    warna: 'amber',
+    permissions: ['scanner', 'riwayat'],
+  },
+];
 
 export function Pengaturan() {
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
-  const currentSub = searchParams.get('sub'); // 'profil' | 'rbac' | 'acara' | 'sistem' | null
+  const currentSub = searchParams.get('sub'); // 'profil' | 'rbac' | null
+  const rbacTabParam = searchParams.get('tab'); // 'akses' | 'tambah' | null
+  const rbacView = searchParams.get('view'); // 'tambah' | 'tambah-role' | null
+  const selectedUserId = searchParams.get('user_id'); // string | null
+  const selectedRoleId = searchParams.get('role_id'); // string | null
 
-  // State Profil User
+  // Tab aktif di RBAC (default 'tambah')
+  const rbacTab: 'akses' | 'tambah' = rbacTabParam === 'akses' ? 'akses' : 'tambah';
+
+  // State Profil User yang Sedang Login
   const [currentUser, setCurrentUser] = useState<AdminUser | null>(null);
 
   // State Validasi Konfirmasi Keluar (Logout)
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
 
+  // State Konfirmasi Hapus Pengguna
+  const [userToDelete, setUserToDelete] = useState<AdminUser | null>(null);
+  const [deletingUser, setDeletingUser] = useState(false);
+
   // State Manajemen RBAC Pengguna (Superadmin)
   const [users, setUsers] = useState<AdminUser[]>([]);
   const [loadingUsers, setLoadingUsers] = useState(false);
-  const [rbacTab, setRbacTab] = useState<'akses' | 'tambah'>('tambah');
-  const [showAddForm, setShowAddForm] = useState(false);
   const [userSearch, setUserSearch] = useState('');
   const [userSort, setUserSort] = useState<'terbaru' | 'terlama' | 'nama_asc' | 'nama_desc' | 'role'>('terbaru');
+
+  // State Role & Permissions (RBAC) dengan Persistent Storage (localStorage)
+  const [roles, setRoles] = useState<RoleDefinition[]>(() => {
+    try {
+      const saved = localStorage.getItem('evenscan_rbac_roles');
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          return parsed;
+        }
+      }
+    } catch (err) {
+      console.error('Error loading roles from localStorage:', err);
+    }
+    return DEFAULT_ROLES;
+  });
+
+  // Simpan perubahan role ke localStorage secara otomatis
+  useEffect(() => {
+    try {
+      localStorage.setItem('evenscan_rbac_roles', JSON.stringify(roles));
+    } catch (err) {
+      console.error('Error saving roles to localStorage:', err);
+    }
+  }, [roles]);
+
+  // State Form Halaman Baru Buat Role Baru
+  const [newRoleNama, setNewRoleNama] = useState('');
+  const [newRoleDeskripsi, setNewRoleDeskripsi] = useState('');
+  const [newRolePermissions, setNewRolePermissions] = useState<string[]>(['dashboard']);
+  const [createRoleSubmitted, setCreateRoleSubmitted] = useState(false);
+  const [roleValidationModal, setRoleValidationModal] = useState(false);
+  const [roleValidationError, setRoleValidationError] = useState('');
+  const [createdRoleSuccessModal, setCreatedRoleSuccessModal] = useState(false);
+  const [lastCreatedRole, setLastCreatedRole] = useState<RoleDefinition | null>(null);
+
+  // State Edit Hak Akses di Halaman Detail Role
+  const [isEditingRolePermissions, setIsEditingRolePermissions] = useState(false);
+  const [detailEditPermissions, setDetailEditPermissions] = useState<string[]>([]);
+  const [editRoleSuccessModal, setEditRoleSuccessModal] = useState(false);
+
+  // State Hapus Role Kustom
+  const [roleToDelete, setRoleToDelete] = useState<RoleDefinition | null>(null);
+  const [roleDeleteAlertMsg, setRoleDeleteAlertMsg] = useState('');
 
   // Form Tambah User
   const [newNama, setNewNama] = useState('');
   const [newUsername, setNewUsername] = useState('');
   const [newPassword, setNewPassword] = useState('');
-  const [newRole, setNewRole] = useState<'superadmin' | 'panitia' | 'scanner'>('panitia');
+  const [newRole, setNewRole] = useState<string>('panitia');
   const [submittingUser, setSubmittingUser] = useState(false);
   const [formError, setFormError] = useState('');
   const [formSuccess, setFormSuccess] = useState('');
+
+  // Validasi & Modal Popup Form Tambah User
+  const [formSubmitted, setFormSubmitted] = useState(false);
+  const [showValidationModal, setShowValidationModal] = useState(false);
+  const [validationErrors, setValidationErrors] = useState<string[]>([]);
+  const [showSuccessModal, setShowSuccessModal] = useState(false);
+  const [savedUserData, setSavedUserData] = useState<{ nama: string; username: string; role: string } | null>(null);
 
   useEffect(() => {
     fetchProfile();
@@ -98,18 +234,176 @@ export function Pengaturan() {
     }
   };
 
-  const handleCreateUser = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setFormError('');
-    setFormSuccess('');
+  // ==========================================================
+  // NAVIGASI PENGELOLAAN AKSES: BUAT ROLE & DETAIL ROLE
+  // ==========================================================
+  const openCreateRolePage = () => {
+    setNewRoleNama('');
+    setNewRoleDeskripsi('');
+    setNewRolePermissions(['dashboard']);
+    setCreateRoleSubmitted(false);
+    setRoleValidationModal(false);
+    setSearchParams({ sub: 'rbac', tab: 'akses', view: 'tambah-role' });
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
 
-    if (!newNama || !newUsername || !newPassword) {
-      setFormError('Nama lengkap, username, dan password wajib diisi');
+  const openRoleDetail = (roleId: string) => {
+    const r = roles.find((item) => item.id === roleId);
+    if (r) {
+      setDetailEditPermissions([...r.permissions]);
+    }
+    setIsEditingRolePermissions(false);
+    setSearchParams({ sub: 'rbac', tab: 'akses', role_id: roleId });
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
+  const backToRbacAkses = () => {
+    setIsEditingRolePermissions(false);
+    setRoleToDelete(null);
+    setSearchParams({ sub: 'rbac', tab: 'akses' });
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
+  // ==========================================================
+  // LOGIKA HALAMAN BARU: SIMPAN ROLE BARU
+  // ==========================================================
+  const handleToggleNewRolePermission = (permId: string) => {
+    setNewRolePermissions((prev) =>
+      prev.includes(permId) ? prev.filter((id) => id !== permId) : [...prev, permId]
+    );
+  };
+
+  const handleSelectAllNewRolePermissions = () => {
+    setNewRolePermissions(SYSTEM_PERMISSIONS.map((p) => p.id));
+  };
+
+  const handleClearAllNewRolePermissions = () => {
+    setNewRolePermissions([]);
+  };
+
+  const handleSaveNewRole = (e: React.FormEvent) => {
+    e.preventDefault();
+    setCreateRoleSubmitted(true);
+
+    if (!newRoleNama.trim()) {
+      setRoleValidationError('Bagian Nama Role wajib terisi.');
+      setRoleValidationModal(true);
       return;
     }
 
-    if (newPassword.length < 6) {
-      setFormError('Password minimal 6 karakter');
+    if (newRolePermissions.length === 0) {
+      setRoleValidationError('Pilih minimal satu hak akses modul sistem untuk role ini.');
+      setRoleValidationModal(true);
+      return;
+    }
+
+    // Buat slug ID unik
+    const baseId = newRoleNama
+      .trim()
+      .toLowerCase()
+      .replace(/[^a-z0-9]/g, '_')
+      .slice(0, 20);
+    const uniqueId = roles.some((r) => r.id === baseId)
+      ? `${baseId}_${Math.floor(Math.random() * 900 + 100)}`
+      : baseId;
+
+    const newRoleObj: RoleDefinition = {
+      id: uniqueId,
+      nama: newRoleNama.trim(),
+      deskripsi: newRoleDeskripsi.trim() || `Role kustom ${newRoleNama.trim()} dengan wewenang khusus.`,
+      isSystem: false,
+      warna: 'emerald',
+      permissions: newRolePermissions,
+    };
+
+    setRoles((prev) => [...prev, newRoleObj]);
+    setLastCreatedRole(newRoleObj);
+    setCreatedRoleSuccessModal(true);
+  };
+
+  const handleCloseCreatedRoleSuccessModal = () => {
+    setCreatedRoleSuccessModal(false);
+    setLastCreatedRole(null);
+    setNewRoleNama('');
+    setNewRoleDeskripsi('');
+    setNewRolePermissions(['dashboard']);
+    setCreateRoleSubmitted(false);
+    backToRbacAkses();
+  };
+
+  // ==========================================================
+  // LOGIKA HALAMAN DETAIL ROLE: EDIT PERMISSIONS & HAPUS
+  // ==========================================================
+  const handleToggleDetailPermission = (permId: string) => {
+    setDetailEditPermissions((prev) =>
+      prev.includes(permId) ? prev.filter((id) => id !== permId) : [...prev, permId]
+    );
+  };
+
+  const handleSaveDetailRolePermissions = (roleId: string) => {
+    if (detailEditPermissions.length === 0) {
+      alert('Role harus memiliki minimal satu hak akses modul aktif.');
+      return;
+    }
+
+    setRoles((prev) =>
+      prev.map((r) => (r.id === roleId ? { ...r, permissions: detailEditPermissions } : r))
+    );
+
+    setIsEditingRolePermissions(false);
+    setEditRoleSuccessModal(true);
+  };
+
+  const handleRequestDeleteRole = (role: RoleDefinition) => {
+    if (role.isSystem) return;
+
+    // Hitung pengguna yang sedang menggunakan role ini
+    const count = users.filter(
+      (u) => u.role === role.id || u.role.toLowerCase() === role.nama.toLowerCase()
+    ).length;
+
+    if (count > 0) {
+      setRoleDeleteAlertMsg(
+        `Role "${role.nama}" tidak dapat dihapus karena saat ini masih digunakan oleh ${count} pengguna terdaftar. Ubah role akun pengguna tersebut terlebih dahulu.`
+      );
+      return;
+    }
+
+    setRoleToDelete(role);
+  };
+
+  const confirmDeleteRole = () => {
+    if (!roleToDelete || roleToDelete.isSystem) return;
+
+    setRoles((prev) => prev.filter((r) => r.id !== roleToDelete.id));
+    setRoleToDelete(null);
+    backToRbacAkses();
+  };
+
+  // ==========================================================
+  // LOGIKA TAMBAH PENGGUNA BARU
+  // ==========================================================
+  const handleCreateUser = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setFormSubmitted(true);
+    setFormError('');
+    setFormSuccess('');
+
+    const isNamaEmpty = !newNama.trim();
+    const isUsernameEmpty = !newUsername.trim();
+    const isPasswordEmpty = !newPassword.trim();
+    const isPasswordTooShort = newPassword.trim().length > 0 && newPassword.trim().length < 6;
+
+    const errors: string[] = [];
+    if (isNamaEmpty) errors.push('Nama Lengkap wajib diisi');
+    if (isUsernameEmpty) errors.push('Username Login wajib diisi');
+    if (isPasswordEmpty) errors.push('Password wajib diisi');
+    else if (isPasswordTooShort) errors.push('Password minimal 6 karakter');
+
+    // Jika ada kolom yang masih kosong atau tidak valid: Munculkan Modal Notifikasi
+    if (errors.length > 0) {
+      setValidationErrors(errors);
+      setShowValidationModal(true);
       return;
     }
 
@@ -123,8 +417,8 @@ export function Pengaturan() {
           Authorization: `Bearer ${token}`,
         },
         body: JSON.stringify({
-          nama: newNama,
-          username: newUsername,
+          nama: newNama.trim(),
+          username: newUsername.trim().toLowerCase(),
           password: newPassword,
           role: newRole,
         }),
@@ -137,12 +431,15 @@ export function Pengaturan() {
         return;
       }
 
-      setFormSuccess(`Pengguna "${newNama}" (@${newUsername}) berhasil ditambahkan!`);
-      setNewNama('');
-      setNewUsername('');
-      setNewPassword('');
-      setNewRole('panitia');
-      setShowAddForm(false);
+      // Simpan data pengguna yang baru tersimpan untuk ditampilkan di Modal Popup Sukses
+      setSavedUserData({
+        nama: newNama.trim(),
+        username: newUsername.trim().toLowerCase(),
+        role: newRole,
+      });
+      setShowSuccessModal(true);
+
+      // Refresh data pengguna di background
       await fetchUsers();
     } catch (err: any) {
       setFormError('Terjadi kesalahan jaringan: ' + err.message);
@@ -151,8 +448,25 @@ export function Pengaturan() {
     }
   };
 
-  const getFilteredAndSortedUsers = () => {
-    const allList: AdminUser[] = [
+  // Tutup Modal Sukses dan kembali ke tab halaman tambah pengguna
+  const handleCloseSuccessModal = () => {
+    setShowSuccessModal(false);
+    setFormSuccess(
+      savedUserData
+        ? `Pengguna "${savedUserData.nama}" (@${savedUserData.username}) berhasil ditambahkan!`
+        : 'Pengguna baru berhasil ditambahkan!'
+    );
+    setSavedUserData(null);
+    setNewNama('');
+    setNewUsername('');
+    setNewPassword('');
+    setNewRole('panitia');
+    setFormSubmitted(false);
+    backToRbacTab('tambah');
+  };
+
+  const getAllUsers = (): AdminUser[] => {
+    return [
       {
         id: 'admin_master',
         username: 'admin',
@@ -162,7 +476,10 @@ export function Pengaturan() {
       },
       ...users,
     ];
+  };
 
+  const getFilteredAndSortedUsers = () => {
+    const allList = getAllUsers();
     const q = userSearch.toLowerCase().trim();
     let filtered = allList.filter((u) => {
       if (!q) return true;
@@ -198,26 +515,29 @@ export function Pengaturan() {
     return filtered;
   };
 
-  const handleDeleteUser = async (id: string, nama: string) => {
-    if (!confirm(`Yakin ingin menghapus pengguna "${nama}"? Aksi ini tidak dapat dibatalkan.`)) {
-      return;
-    }
-
+  const confirmDeleteUser = async () => {
+    if (!userToDelete) return;
+    setDeletingUser(true);
     try {
       const token = localStorage.getItem('token');
-      const res = await fetch(`${API_URL}/api/admin/users/${id}`, {
+      const res = await fetch(`${API_URL}/api/admin/users/${userToDelete.id}`, {
         method: 'DELETE',
         headers: { Authorization: `Bearer ${token}` },
       });
 
       if (res.ok) {
-        setUsers(users.filter((u) => u.id !== id));
+        setUsers((prev) => prev.filter((u) => u.id !== userToDelete.id));
+        setFormSuccess(`Pengguna "${userToDelete.nama}" (@${userToDelete.username}) berhasil dihapus.`);
+        setUserToDelete(null);
+        backToRbacTab('tambah');
       } else {
         const json = await res.json();
         alert(json.error || 'Gagal menghapus pengguna');
       }
     } catch (err) {
-      alert('Gagal menghapus pengguna');
+      alert('Gagal menghapus pengguna: Terjadi kesalahan jaringan');
+    } finally {
+      setDeletingUser(false);
     }
   };
 
@@ -228,6 +548,105 @@ export function Pengaturan() {
   const confirmLogout = () => {
     localStorage.removeItem('token');
     navigate('/login');
+  };
+
+  const openSubmenu = (sub: string) => {
+    if (sub === 'rbac') {
+      setSearchParams({ sub: 'rbac', tab: 'tambah' });
+    } else {
+      setSearchParams({ sub });
+    }
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
+  const backToMenu = () => {
+    setSearchParams({});
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
+  const switchRbacTab = (tab: 'akses' | 'tambah') => {
+    setSearchParams({ sub: 'rbac', tab });
+    setFormError('');
+  };
+
+  const openAddUserPage = () => {
+    setFormError('');
+    setFormSubmitted(false);
+    setShowValidationModal(false);
+    setShowSuccessModal(false);
+    setSearchParams({ sub: 'rbac', tab: 'tambah', view: 'tambah' });
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
+  const openUserProfile = (userId: string) => {
+    setSearchParams({ sub: 'rbac', tab: 'tambah', user_id: userId });
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
+  const backToRbacTab = (tab: 'akses' | 'tambah' = 'tambah') => {
+    setFormSubmitted(false);
+    setShowValidationModal(false);
+    setShowSuccessModal(false);
+    setSearchParams({ sub: 'rbac', tab });
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
+  const getRoleBadge = (role: string) => {
+    const roleDef = roles.find((r) => r.id === role || r.nama.toLowerCase() === role.toLowerCase());
+
+    if (role === 'superadmin') {
+      return (
+        <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-purple-100 text-purple-800 text-[10px] font-black uppercase tracking-wider border border-purple-200">
+          ★ Superadmin
+        </span>
+      );
+    }
+    if (role === 'panitia') {
+      return (
+        <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-sky-100 text-sky-800 text-[10px] font-black uppercase tracking-wider border border-sky-200">
+          ✓ Panitia Registrasi
+        </span>
+      );
+    }
+    if (role === 'scanner') {
+      return (
+        <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-amber-100 text-amber-800 text-[10px] font-black uppercase tracking-wider border border-amber-200">
+          ⎚ Petugas Scanner
+        </span>
+      );
+    }
+
+    if (roleDef) {
+      return (
+        <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-emerald-100 text-emerald-800 text-[10px] font-black uppercase tracking-wider border border-emerald-200">
+          ◆ {roleDef.nama}
+        </span>
+      );
+    }
+
+    return (
+      <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-slate-100 text-slate-800 text-[10px] font-bold">
+        {role}
+      </span>
+    );
+  };
+
+  const formatDate = (isoString?: string) => {
+    if (!isoString) return 'Tidak diketahui';
+    try {
+      const d = new Date(isoString);
+      return (
+        d.toLocaleDateString('id-ID', {
+          day: 'numeric',
+          month: 'long',
+          year: 'numeric',
+          hour: '2-digit',
+          minute: '2-digit',
+        }) + ' WIB'
+      );
+    } catch {
+      return isoString;
+    }
   };
 
   const renderLogoutModal = () => {
@@ -267,101 +686,211 @@ export function Pengaturan() {
     );
   };
 
-  const openSubmenu = (sub: string) => {
-    setSearchParams({ sub });
-    window.scrollTo({ top: 0, behavior: 'smooth' });
+  const renderDeleteUserModal = () => {
+    if (!userToDelete) return null;
+    return (
+      <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 backdrop-blur-xs p-4 animate-in fade-in duration-150">
+        <div className="bg-white rounded-3xl max-w-sm w-full p-6 shadow-2xl border border-slate-100 text-center animate-in zoom-in-95 duration-150">
+          <div className="w-14 h-14 rounded-2xl bg-rose-50 text-rose-600 border border-rose-200 flex items-center justify-center mx-auto mb-4">
+            <svg className="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+            </svg>
+          </div>
+
+          <h3 className="text-base font-black text-slate-900 mb-1.5">Hapus Pengguna?</h3>
+          <p className="text-xs text-slate-500 leading-relaxed mb-6">
+            Apakah Anda yakin ingin menghapus pengguna <strong className="text-slate-800">{userToDelete.nama}</strong> (@{userToDelete.username})? Akun ini tidak akan dapat login lagi ke sistem.
+          </p>
+
+          <div className="flex gap-2.5">
+            <button
+              type="button"
+              disabled={deletingUser}
+              onClick={() => setUserToDelete(null)}
+              className="flex-1 py-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold transition active:scale-95"
+            >
+              Batal
+            </button>
+            <button
+              type="button"
+              disabled={deletingUser}
+              onClick={confirmDeleteUser}
+              className="flex-1 py-2.5 rounded-xl bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold transition shadow-sm active:scale-95 disabled:opacity-50 inline-flex items-center justify-center gap-1.5"
+            >
+              {deletingUser ? (
+                <>
+                  <div className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                  <span>Menghapus...</span>
+                </>
+              ) : (
+                <span>Ya, Hapus</span>
+              )}
+            </button>
+          </div>
+        </div>
+      </div>
+    );
   };
 
-  const backToMenu = () => {
-    setSearchParams({});
-    window.scrollTo({ top: 0, behavior: 'smooth' });
+  /**
+   * Modal Notifikasi Popup Validasi Kolom Kosong Form Tambah Pengguna
+   */
+  const renderValidationModal = () => {
+    if (!showValidationModal) return null;
+    return (
+      <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-xs p-4 animate-in fade-in duration-150">
+        <div className="bg-white rounded-3xl max-w-sm w-full p-6 shadow-2xl border border-rose-100 text-center animate-in zoom-in-95 duration-150">
+          <div className="w-14 h-14 rounded-2xl bg-rose-50 text-rose-600 border border-rose-200 flex items-center justify-center mx-auto mb-4 shadow-xs">
+            <svg className="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth="2"
+                d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"
+              />
+            </svg>
+          </div>
+
+          <h3 className="text-base font-black text-slate-900 mb-1.5">Bagian Formulir Wajib Terisi</h3>
+          <p className="text-xs text-slate-500 leading-relaxed mb-4">
+            Terdapat kolom yang masih kosong atau belum memenuhi syarat. Mohon lengkapi bagian berikut sebelum menyimpan:
+          </p>
+
+          <div className="bg-rose-50/70 border border-rose-200 rounded-2xl p-3 mb-5 text-left text-xs space-y-1.5">
+            {validationErrors.map((err, idx) => (
+              <div key={idx} className="flex items-center gap-2 text-rose-800 font-bold">
+                <span className="w-1.5 h-1.5 rounded-full bg-rose-600 shrink-0" />
+                <span>{err}</span>
+              </div>
+            ))}
+          </div>
+
+          <button
+            type="button"
+            onClick={() => setShowValidationModal(false)}
+            className="w-full py-2.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold transition shadow-sm active:scale-95 cursor-pointer"
+          >
+            Mengerti, Lengkapi Data
+          </button>
+        </div>
+      </div>
+    );
   };
 
-  const getRoleBadge = (role: string) => {
-    switch (role) {
-      case 'superadmin':
-        return (
-          <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-purple-100 text-purple-800 text-[10px] font-black uppercase tracking-wider border border-purple-200">
-            ★ Superadmin
-          </span>
-        );
-      case 'panitia':
-        return (
-          <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-sky-100 text-sky-800 text-[10px] font-black uppercase tracking-wider border border-sky-200">
-            ✓ Panitia Registrasi
-          </span>
-        );
-      case 'scanner':
-        return (
-          <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-amber-100 text-amber-800 text-[10px] font-black uppercase tracking-wider border border-amber-200">
-            ⎚ Petugas Scanner
-          </span>
-        );
-      default:
-        return (
-          <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-slate-100 text-slate-800 text-[10px] font-bold">
-            {role}
-          </span>
-        );
-    }
+  /**
+   * Modal Notifikasi Popup Sukses Data Pengguna Tersimpan
+   */
+  const renderSuccessModal = () => {
+    if (!showSuccessModal) return null;
+    return (
+      <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-xs p-4 animate-in fade-in duration-150">
+        <div className="bg-white rounded-3xl max-w-sm w-full p-6 shadow-2xl border border-emerald-100 text-center animate-in zoom-in-95 duration-150">
+          <div className="w-16 h-16 rounded-2xl bg-emerald-50 text-emerald-600 border border-emerald-200 flex items-center justify-center mx-auto mb-4 shadow-xs">
+            <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M5 13l4 4L19 7" />
+            </svg>
+          </div>
+
+          <h3 className="text-lg font-black text-slate-900 mb-1.5">Data Berhasil Disimpan!</h3>
+          <p className="text-xs text-slate-600 leading-relaxed mb-4">
+            Pengguna <strong className="text-slate-900 font-black">{savedUserData?.nama}</strong> (@{savedUserData?.username}) dengan role <strong className="text-slate-900 font-black capitalize">{savedUserData?.role}</strong> telah sukses tersimpan dan terdaftar ke dalam sistem.
+          </p>
+
+          <div className="p-3 bg-emerald-50/70 border border-emerald-200 rounded-2xl mb-5 text-[11px] text-emerald-800 font-semibold flex items-center justify-center gap-2">
+            <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+            <span>Akun siap digunakan untuk login admin</span>
+          </div>
+
+          <button
+            type="button"
+            onClick={handleCloseSuccessModal}
+            className="w-full py-2.5 rounded-xl bg-[#06305d] hover:bg-[#0a4583] text-white text-xs font-bold transition shadow-sm active:scale-95 flex items-center justify-center gap-2 cursor-pointer"
+          >
+            <span>Kembali ke Halaman Tambah Pengguna</span>
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M14 5l7 7m0 0l-7 7m7-7H3" />
+            </svg>
+          </button>
+        </div>
+      </div>
+    );
   };
 
-  // ==========================================================
-  // VIEW 1: DETAIL SUBMENU PROFIL ADMIN
-  // ==========================================================
-  if (currentSub === 'profil') {
+  /**
+   * Render Komponen Halaman Profil Pengguna
+   */
+  const renderUserProfileView = (
+    user: AdminUser,
+    isSelf: boolean,
+    onBack: () => void,
+    backLabel: string
+  ) => {
+    const isMaster = user.id === 'admin_master';
+    const canDelete = currentUser?.role === 'superadmin' && !isSelf && !isMaster;
+    const userRoleDef = roles.find((r) => r.id === user.role || r.nama.toLowerCase() === user.role.toLowerCase());
+
+    const hasPermission = (permId: string) => {
+      if (user.role === 'superadmin') return true;
+      return userRoleDef ? userRoleDef.permissions.includes(permId) : false;
+    };
+
     return (
       <div className="max-w-3xl mx-auto space-y-5 animate-in fade-in duration-150">
         {/* Tombol Back */}
         <div className="flex items-center gap-2 sm:gap-3">
           <button
-            onClick={backToMenu}
-            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white hover:bg-slate-100 border border-slate-200 text-xs font-bold text-slate-700 shadow-xs transition active:scale-95"
+            onClick={onBack}
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white hover:bg-slate-100 border border-slate-200 text-xs font-bold text-slate-700 shadow-xs transition active:scale-95 cursor-pointer"
           >
             <svg className="w-4 h-4 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M15 19l-7-7 7-7" />
             </svg>
             <span>Kembali</span>
-            <span className="hidden sm:inline"> ke Pengaturan</span>
+            <span className="hidden sm:inline"> {backLabel}</span>
           </button>
           <span className="hidden sm:inline text-xs text-slate-400">/</span>
-          <span className="hidden sm:inline text-xs font-semibold text-slate-600">Detail Profil Saya</span>
+          <span className="hidden sm:inline text-xs font-semibold text-slate-600">
+            {isSelf ? 'Detail Profil Saya' : `Profil ${user.nama}`}
+          </span>
         </div>
 
         {/* Kartu Profil Utama */}
         <div className="bg-white rounded-3xl p-6 border border-slate-200 shadow-xs space-y-6">
           <div className="flex flex-col sm:flex-row sm:items-center gap-5">
             <div className="w-16 h-16 rounded-2xl bg-gradient-to-tr from-[#06305d] to-[#0a529b] text-white flex items-center justify-center font-black text-2xl shadow-md shrink-0">
-              {currentUser?.nama?.charAt(0) || 'A'}
+              {user.nama?.charAt(0).toUpperCase() || 'A'}
             </div>
 
             <div className="flex-1 min-w-0">
               <div className="flex flex-wrap items-center gap-2 mb-1">
                 <h2 className="text-xl font-black text-slate-900 leading-tight">
-                  {currentUser?.nama || 'Administrator'}
+                  {user.nama}
                 </h2>
-                {currentUser && getRoleBadge(currentUser.role)}
+                {getRoleBadge(user.role)}
               </div>
-              <p className="text-xs text-slate-500 font-mono">@{currentUser?.username || 'admin'}</p>
-              <p className="text-[11px] text-slate-400 mt-1">ID Pengguna: {currentUser?.id}</p>
+              <p className="text-xs text-slate-500 font-mono">@{user.username}</p>
+              <p className="text-[11px] text-slate-400 mt-1">ID Pengguna: {user.id}</p>
             </div>
 
-            <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-emerald-50 text-emerald-800 border border-emerald-200 text-xs font-bold self-start sm:self-auto">
-              <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-              Sesi JWT Aktif
-            </span>
+            <div className="flex flex-col items-start sm:items-end gap-1.5">
+              <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-emerald-50 text-emerald-800 border border-emerald-200 text-xs font-bold">
+                <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+                {isSelf ? 'Sesi Aktif' : 'Akun Aktif'}
+              </span>
+              {user.created_at && (
+                <span className="text-[10px] text-slate-400">
+                  Terdaftar: {formatDate(user.created_at)}
+                </span>
+              )}
+            </div>
           </div>
 
           <div className="pt-5 border-t border-slate-100 grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
             <div className="p-3.5 bg-slate-50 rounded-2xl">
               <p className="text-slate-400 text-[10px] font-bold uppercase tracking-wider">Hak Akses Role</p>
-              <p className="font-bold text-slate-800 mt-0.5 capitalize">{currentUser?.role}</p>
+              <p className="font-bold text-slate-800 mt-0.5 capitalize">{userRoleDef?.nama || user.role}</p>
               <p className="text-[11px] text-slate-500 mt-1">
-                {currentUser?.role === 'superadmin'
-                  ? 'Akses penuh seluruh fitur admin, verifikasi berkas, scanner, dan RBAC.'
-                  : currentUser?.role === 'panitia'
-                  ? 'Akses verifikasi berkas pendaftar dan scanner presensi.'
-                  : 'Akses khusus pemindaian QR code di pintu masuk.'}
+                {userRoleDef?.deskripsi || 'Peran pengguna operasional sistem EvenScan.'}
               </p>
             </div>
 
@@ -374,88 +903,958 @@ export function Pengaturan() {
             </div>
           </div>
 
-          {/* Rincian Izin Akun */}
+          {/* Rincian Izin Wewenang Akun Dinamis Sesuai Role */}
           <div className="pt-2">
             <h4 className="text-xs font-bold text-slate-700 uppercase tracking-wider mb-2.5">
               Daftar Wewenang Akun
             </h4>
             <div className="space-y-2 text-xs">
-              <div className="flex items-center gap-2 text-slate-700">
-                <span className="text-emerald-600 font-bold">✓</span>
-                <span>Melihat data pendaftar & ringkasan kehadiran</span>
-              </div>
-              <div className="flex items-center gap-2 text-slate-700">
-                <span className="text-emerald-600 font-bold">✓</span>
-                <span>Menggunakan Fast Action Scan kamera QR code</span>
-              </div>
-              <div className="flex items-center gap-2 text-slate-700">
-                <span className="text-emerald-600 font-bold">✓</span>
-                <span>Melihat daftar riwayat scan peserta hadir</span>
-              </div>
-              <div className="flex items-center gap-2 text-slate-700">
-                {currentUser?.role === 'superadmin' || currentUser?.role === 'panitia' ? (
-                  <>
-                    <span className="text-emerald-600 font-bold">✓</span>
-                    <span>Memverifikasi berkas pembayaran & mengirim tiket WhatsApp</span>
-                  </>
-                ) : (
-                  <>
-                    <span className="text-slate-300">✗</span>
-                    <span className="text-slate-400">Verifikasi berkas (Khusus Panitia & Superadmin)</span>
-                  </>
-                )}
-              </div>
-              <div className="flex items-center gap-2 text-slate-700">
-                {currentUser?.role === 'superadmin' ? (
-                  <>
-                    <span className="text-emerald-600 font-bold">✓</span>
-                    <span>Menambah & menghapus pengguna panitia lain (RBAC)</span>
-                  </>
-                ) : (
-                  <>
-                    <span className="text-slate-300">✗</span>
-                    <span className="text-slate-400">Manajemen Pengguna RBAC (Khusus Superadmin)</span>
-                  </>
-                )}
-              </div>
+              {SYSTEM_PERMISSIONS.map((perm) => {
+                const allowed = hasPermission(perm.id);
+                return (
+                  <div key={perm.id} className="flex items-center gap-2">
+                    {allowed ? (
+                      <>
+                        <span className="text-emerald-600 font-bold">✓</span>
+                        <span className="text-slate-800 font-medium">{perm.nama}</span>
+                      </>
+                    ) : (
+                      <>
+                        <span className="text-slate-300">✗</span>
+                        <span className="text-slate-400">{perm.nama} (Tidak ada izin)</span>
+                      </>
+                    )}
+                  </div>
+                );
+              })}
             </div>
           </div>
 
-          <div className="pt-4 border-t border-slate-100 flex justify-end">
-            <button
-              onClick={handleLogout}
-              className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 text-xs font-bold transition active:scale-95"
-            >
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
-              </svg>
-              <span>Keluar dari Akun Ini</span>
-            </button>
+          {/* Aksi Tambahan: Keluar Akun jika Self, atau Hapus jika Superadmin melihat user lain */}
+          <div className="pt-4 border-t border-slate-100 flex flex-wrap items-center justify-between gap-3">
+            <div>
+              {isMaster && (
+                <span className="text-xs font-semibold text-slate-400 italic">
+                  Akun Master Sistem — Terproteksi dari penghapusan
+                </span>
+              )}
+              {isSelf && !isMaster && (
+                <span className="text-xs font-semibold text-sky-700">
+                  Ini adalah akun yang sedang Anda gunakan saat ini.
+                </span>
+              )}
+            </div>
+
+            <div className="flex items-center gap-2">
+              {isSelf && (
+                <button
+                  type="button"
+                  onClick={handleLogout}
+                  className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 text-xs font-bold transition active:scale-95 cursor-pointer"
+                >
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+                  </svg>
+                  <span>Keluar dari Akun Ini</span>
+                </button>
+              )}
+
+              {canDelete && (
+                <button
+                  type="button"
+                  onClick={() => setUserToDelete(user)}
+                  className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 text-xs font-bold transition active:scale-95 cursor-pointer"
+                >
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                  </svg>
+                  <span>Hapus Pengguna Ini</span>
+                </button>
+              )}
+            </div>
           </div>
         </div>
 
         {renderLogoutModal()}
+        {renderDeleteUserModal()}
       </div>
     );
+  };
+
+  // ==========================================================
+  // VIEW 1: DETAIL SUBMENU PROFIL ADMIN (DARI MENU UTAMA PENGATURAN)
+  // ==========================================================
+  if (currentSub === 'profil') {
+    const profileToShow = currentUser || {
+      id: 'admin_master',
+      username: 'admin',
+      nama: 'Administrator Muslim Scene',
+      role: 'superadmin',
+    };
+    return renderUserProfileView(profileToShow, true, backToMenu, 'ke Pengaturan');
   }
 
   // ==========================================================
   // VIEW 2: DETAIL SUBMENU MANAJEMEN PENGGUNA (RBAC)
   // ==========================================================
   if (currentSub === 'rbac') {
+    // --------------------------------------------------------
+    // KONDISI 2A: NON-SUPERADMIN (LOCKED STATE)
+    // --------------------------------------------------------
+    if (currentUser?.role !== 'superadmin') {
+      return (
+        <div className="max-w-4xl mx-auto space-y-5 animate-in fade-in duration-150">
+          <div className="flex items-center gap-2 sm:gap-3">
+            <button
+              onClick={backToMenu}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white hover:bg-slate-100 border border-slate-200 text-xs font-bold text-slate-700 shadow-xs transition active:scale-95 cursor-pointer"
+            >
+              <svg className="w-4 h-4 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M15 19l-7-7 7-7" />
+              </svg>
+              <span>Kembali ke Pengaturan</span>
+            </button>
+          </div>
+
+          <div className="bg-white rounded-3xl p-8 border border-amber-200 shadow-xs text-center max-w-lg mx-auto">
+            <div className="w-14 h-14 rounded-2xl bg-amber-50 text-amber-600 flex items-center justify-center mx-auto mb-3 border border-amber-200">
+              <svg className="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 00-2 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+              </svg>
+            </div>
+            <h3 className="text-base font-black text-slate-800 mb-1">Akses Terbatas: Khusus Superadmin</h3>
+            <p className="text-xs text-slate-500 mb-4 leading-relaxed">
+              Akun Anda memiliki role <strong className="text-slate-800">{currentUser?.role}</strong>. Modul penambahan pengguna dan konfigurasi hak akses (RBAC) hanya dapat dikelola oleh Superadmin.
+            </p>
+            <button
+              onClick={backToMenu}
+              className="px-4 py-2 rounded-xl bg-slate-900 text-white text-xs font-bold shadow-sm transition active:scale-95 cursor-pointer"
+            >
+              Kembali ke Menu Pengaturan
+            </button>
+          </div>
+        </div>
+      );
+    }
+
+    // --------------------------------------------------------
+    // KONDISI 2B: HALAMAN BARU FORM TAMBAH PENGGUNA
+    // --------------------------------------------------------
+    if (rbacTab === 'tambah' && rbacView === 'tambah') {
+      const isNamaEmpty = formSubmitted && !newNama.trim();
+      const isUsernameEmpty = formSubmitted && !newUsername.trim();
+      const isPasswordEmpty = formSubmitted && !newPassword.trim();
+      const isPasswordTooShort = formSubmitted && newPassword.trim().length > 0 && newPassword.trim().length < 6;
+      const isPasswordInvalid = isPasswordEmpty || isPasswordTooShort;
+
+      return (
+        <div className="max-w-3xl mx-auto space-y-5 animate-in fade-in duration-150">
+          {/* Tombol Back ke Tab Tambah Pengguna */}
+          <div className="flex items-center gap-2 sm:gap-3">
+            <button
+              onClick={() => backToRbacTab('tambah')}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white hover:bg-slate-100 border border-slate-200 text-xs font-bold text-slate-700 shadow-xs transition active:scale-95 cursor-pointer"
+            >
+              <svg className="w-4 h-4 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M15 19l-7-7 7-7" />
+              </svg>
+              <span>Kembali</span>
+              <span className="hidden sm:inline"> ke Tambah Pengguna</span>
+            </button>
+            <span className="hidden sm:inline text-xs text-slate-400">/</span>
+            <span className="hidden sm:inline text-xs font-semibold text-slate-600">Tambah Pengguna Baru</span>
+          </div>
+
+          {/* Form Card Baru */}
+          <div className="bg-white rounded-3xl p-6 sm:p-7 border border-slate-200 shadow-xs space-y-6">
+            <div>
+              <h2 className="text-xl font-black text-slate-900">Formulir Tambah Pengguna Baru</h2>
+              <p className="text-xs text-slate-500 mt-1">
+                Lengkapi seluruh kolom data di bawah ini untuk membuat kredensial akun panitia baru. Semua kolom dengan tanda bintang (*) wajib diisi.
+              </p>
+            </div>
+
+            {formError && (
+              <div className="p-3.5 bg-rose-50 text-rose-700 text-xs rounded-2xl border border-rose-200 flex items-center justify-between gap-3">
+                <div className="flex items-center gap-2">
+                  <svg className="w-4 h-4 text-rose-500 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                  <span>{formError}</span>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setFormError('')}
+                  className="text-rose-700 hover:text-rose-900 text-xs font-bold cursor-pointer"
+                >
+                  ✕
+                </button>
+              </div>
+            )}
+
+            <form noValidate onSubmit={handleCreateUser} className="space-y-4 text-xs">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <label className={`block font-bold mb-1.5 ${isNamaEmpty ? 'text-rose-600' : 'text-slate-700'}`}>
+                    Nama Lengkap <span className="text-rose-500">*</span>
+                  </label>
+                  <input
+                    type="text"
+                    placeholder="Misal: Ahmad Fauzi"
+                    value={newNama}
+                    onChange={(e) => setNewNama(e.target.value)}
+                    className={`w-full px-3.5 py-2.5 rounded-xl text-slate-800 placeholder-slate-400 focus:outline-none transition ${
+                      isNamaEmpty
+                        ? 'bg-rose-50/50 border-2 border-rose-500 focus:ring-2 focus:ring-rose-500/20 focus:border-rose-600'
+                        : 'bg-slate-50 border border-slate-200 focus:ring-2 focus:ring-[#06305d]/20 focus:border-[#06305d]'
+                    }`}
+                  />
+                  {isNamaEmpty && (
+                    <p className="text-[11px] font-bold text-rose-600 mt-1 flex items-center gap-1">
+                      <span>⚠</span> Bagian Nama Lengkap wajib terisi
+                    </p>
+                  )}
+                </div>
+
+                <div>
+                  <label className={`block font-bold mb-1.5 ${isUsernameEmpty ? 'text-rose-600' : 'text-slate-700'}`}>
+                    Username Login <span className="text-rose-500">*</span>
+                  </label>
+                  <input
+                    type="text"
+                    placeholder="Misal: panitia_fauzi"
+                    value={newUsername}
+                    onChange={(e) => setNewUsername(e.target.value.toLowerCase().replace(/\s+/g, ''))}
+                    className={`w-full px-3.5 py-2.5 rounded-xl font-mono text-slate-800 placeholder-slate-400 focus:outline-none transition ${
+                      isUsernameEmpty
+                        ? 'bg-rose-50/50 border-2 border-rose-500 focus:ring-2 focus:ring-rose-500/20 focus:border-rose-600'
+                        : 'bg-slate-50 border border-slate-200 focus:ring-2 focus:ring-[#06305d]/20 focus:border-[#06305d]'
+                    }`}
+                  />
+                  {isUsernameEmpty && (
+                    <p className="text-[11px] font-bold text-rose-600 mt-1 flex items-center gap-1">
+                      <span>⚠</span> Bagian Username Login wajib terisi
+                    </p>
+                  )}
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <label className={`block font-bold mb-1.5 ${isPasswordInvalid ? 'text-rose-600' : 'text-slate-700'}`}>
+                    Password <span className="text-rose-500">*</span>
+                  </label>
+                  <input
+                    type="password"
+                    placeholder="Minimal 6 karakter"
+                    value={newPassword}
+                    onChange={(e) => setNewPassword(e.target.value)}
+                    className={`w-full px-3.5 py-2.5 rounded-xl text-slate-800 placeholder-slate-400 focus:outline-none transition ${
+                      isPasswordInvalid
+                        ? 'bg-rose-50/50 border-2 border-rose-500 focus:ring-2 focus:ring-rose-500/20 focus:border-rose-600'
+                        : 'bg-slate-50 border border-slate-200 focus:ring-2 focus:ring-[#06305d]/20 focus:border-[#06305d]'
+                    }`}
+                  />
+                  {isPasswordEmpty && (
+                    <p className="text-[11px] font-bold text-rose-600 mt-1 flex items-center gap-1">
+                      <span>⚠</span> Bagian Password wajib terisi
+                    </p>
+                  )}
+                  {isPasswordTooShort && (
+                    <p className="text-[11px] font-bold text-rose-600 mt-1 flex items-center gap-1">
+                      <span>⚠</span> Password minimal 6 karakter
+                    </p>
+                  )}
+                </div>
+
+                <div>
+                  <label className="block font-bold text-slate-700 mb-1.5">Tingkat Hak Akses (Role)</label>
+                  <select
+                    value={newRole}
+                    onChange={(e) => setNewRole(e.target.value)}
+                    className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-slate-800 font-semibold focus:outline-none focus:ring-2 focus:ring-[#06305d]/20 focus:border-[#06305d] cursor-pointer"
+                  >
+                    {roles.map((r) => (
+                      <option key={r.id} value={r.id}>
+                        {r.nama} {r.isSystem ? '' : '(Role Kustom)'}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+
+              {/* Box Info Dinamis Hak Akses Role Terpilih */}
+              <div className="p-3.5 bg-slate-50 rounded-2xl text-[11px] text-slate-600 border border-slate-100">
+                {(() => {
+                  const activeRoleDef = roles.find((r) => r.id === newRole);
+                  if (!activeRoleDef) return null;
+                  return (
+                    <div>
+                      <div className="font-bold text-slate-900 mb-1">
+                        {activeRoleDef.nama}: <span className="font-normal text-slate-600">{activeRoleDef.deskripsi}</span>
+                      </div>
+                      <div className="flex flex-wrap gap-1 mt-2">
+                        <span className="text-[10px] font-bold text-slate-400 mr-1 self-center">Wewenang:</span>
+                        {activeRoleDef.permissions.map((pId) => {
+                          const perm = SYSTEM_PERMISSIONS.find((p) => p.id === pId);
+                          return (
+                            <span
+                              key={pId}
+                              className="px-2 py-0.5 rounded-md bg-white border border-slate-200 text-slate-700 font-semibold text-[10px]"
+                            >
+                              ✓ {perm?.nama || pId}
+                            </span>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  );
+                })()}
+              </div>
+
+              <div className="flex gap-2.5 pt-3 border-t border-slate-100">
+                <button
+                  type="submit"
+                  disabled={submittingUser}
+                  className="inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl bg-[#06305d] hover:bg-[#0a4583] text-white font-bold transition shadow-xs active:scale-95 disabled:opacity-50 cursor-pointer"
+                >
+                  {submittingUser ? (
+                    <>
+                      <div className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                      <span>Menyimpan Pengguna...</span>
+                    </>
+                  ) : (
+                    <span>Simpan Pengguna Baru</span>
+                  )}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => backToRbacTab('tambah')}
+                  className="px-4 py-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold transition cursor-pointer"
+                >
+                  Batal
+                </button>
+              </div>
+            </form>
+          </div>
+
+          {/* Render Modal Validasi & Modal Sukses Khusus Formulir Tambah Pengguna */}
+          {renderValidationModal()}
+          {renderSuccessModal()}
+        </div>
+      );
+    }
+
+    // --------------------------------------------------------
+    // KONDISI 2C: HALAMAN BARU FORM BUAT ROLE BARU
+    // --------------------------------------------------------
+    if (rbacTab === 'akses' && rbacView === 'tambah-role') {
+      const isRoleNamaEmpty = createRoleSubmitted && !newRoleNama.trim();
+      const isRolePermissionsEmpty = createRoleSubmitted && newRolePermissions.length === 0;
+
+      return (
+        <div className="max-w-3xl mx-auto space-y-5 animate-in fade-in duration-150">
+          {/* Tombol Back ke Pengelolaan Akses */}
+          <div className="flex items-center gap-2 sm:gap-3">
+            <button
+              onClick={backToRbacAkses}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white hover:bg-slate-100 border border-slate-200 text-xs font-bold text-slate-700 shadow-xs transition active:scale-95 cursor-pointer"
+            >
+              <svg className="w-4 h-4 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M15 19l-7-7 7-7" />
+              </svg>
+              <span>Kembali</span>
+              <span className="hidden sm:inline"> ke Pengelolaan Akses</span>
+            </button>
+            <span className="hidden sm:inline text-xs text-slate-400">/</span>
+            <span className="hidden sm:inline text-xs font-semibold text-slate-600">Buat Role Baru</span>
+          </div>
+
+          {/* Form Card Buat Role Baru */}
+          <div className="bg-white rounded-3xl p-6 sm:p-7 border border-slate-200 shadow-xs space-y-6">
+            <div>
+              <h2 className="text-xl font-black text-slate-900">Formulir Buat Role Baru & Hak Akses</h2>
+              <p className="text-xs text-slate-500 mt-1">
+                Tentukan nama peran kustom dan pilih wewenang modul sistem apa saja yang diizinkan untuk peran ini. Semua kolom bertanda (*) wajib diisi.
+              </p>
+            </div>
+
+            <form noValidate onSubmit={handleSaveNewRole} className="space-y-4 text-xs">
+              <div>
+                <label className={`block font-bold mb-1.5 ${isRoleNamaEmpty ? 'text-rose-600' : 'text-slate-700'}`}>
+                  Nama Role Baru <span className="text-rose-500">*</span>
+                </label>
+                <input
+                  type="text"
+                  placeholder="Misal: Keuangan & Kasir, Koordinator VIP, Staf Logistik, dll."
+                  value={newRoleNama}
+                  onChange={(e) => setNewRoleNama(e.target.value)}
+                  className={`w-full px-3.5 py-2.5 rounded-xl text-slate-800 placeholder-slate-400 focus:outline-none transition ${
+                    isRoleNamaEmpty
+                      ? 'bg-rose-50/50 border-2 border-rose-500 focus:ring-2 focus:ring-rose-500/20 focus:border-rose-600'
+                      : 'bg-slate-50 border border-slate-200 focus:ring-2 focus:ring-[#06305d]/20 focus:border-[#06305d]'
+                  }`}
+                />
+                {isRoleNamaEmpty && (
+                  <p className="text-[11px] font-bold text-rose-600 mt-1 flex items-center gap-1">
+                    <span>⚠</span> Bagian Nama Role wajib terisi
+                  </p>
+                )}
+              </div>
+
+              <div>
+                <label className="block font-bold text-slate-700 mb-1.5">Deskripsi Tugas & Wewenang</label>
+                <textarea
+                  rows={2}
+                  placeholder="Jelaskan ringkasan tugas dan tanggung jawab peran ini..."
+                  value={newRoleDeskripsi}
+                  onChange={(e) => setNewRoleDeskripsi(e.target.value)}
+                  className="w-full px-3.5 py-2 bg-slate-50 border border-slate-200 rounded-xl text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-[#06305d]/20 focus:border-[#06305d] resize-none"
+                />
+              </div>
+
+              {/* Checklist Hak Akses Modul */}
+              <div className="space-y-2 pt-1">
+                <div className="flex items-center justify-between">
+                  <label className={`block font-bold ${isRolePermissionsEmpty ? 'text-rose-600' : 'text-slate-700'}`}>
+                    Konfigurasi Hak Akses Modul Sistem <span className="text-rose-500">*</span>
+                  </label>
+                  <div className="flex items-center gap-2 text-[11px]">
+                    <button
+                      type="button"
+                      onClick={handleSelectAllNewRolePermissions}
+                      className="text-[#06305d] font-bold hover:underline cursor-pointer"
+                    >
+                      Pilih Semua
+                    </button>
+                    <span className="text-slate-300">•</span>
+                    <button
+                      type="button"
+                      onClick={handleClearAllNewRolePermissions}
+                      className="text-slate-400 font-bold hover:text-slate-600 cursor-pointer"
+                    >
+                      Kosongkan
+                    </button>
+                  </div>
+                </div>
+
+                <div className={`space-y-2 rounded-2xl p-2 transition ${isRolePermissionsEmpty ? 'border-2 border-rose-400 bg-rose-50/20' : ''}`}>
+                  {SYSTEM_PERMISSIONS.map((perm) => {
+                    const isChecked = newRolePermissions.includes(perm.id);
+                    return (
+                      <div
+                        key={perm.id}
+                        onClick={() => handleToggleNewRolePermission(perm.id)}
+                        className={`p-3.5 rounded-2xl border transition cursor-pointer flex items-start gap-3.5 ${
+                          isChecked
+                            ? 'bg-[#06305d]/5 border-[#06305d] text-[#06305d]'
+                            : 'bg-slate-50/70 border-slate-200 text-slate-600 hover:bg-slate-100'
+                        }`}
+                      >
+                        <input
+                          type="checkbox"
+                          checked={isChecked}
+                          onChange={() => {}}
+                          className="mt-0.5 rounded text-[#06305d] focus:ring-[#06305d] cursor-pointer"
+                        />
+                        <div className="flex-1 min-w-0">
+                          <p className="font-bold text-xs text-slate-900">{perm.nama}</p>
+                          <p className="text-[11px] text-slate-500 mt-0.5 leading-relaxed">{perm.deskripsi}</p>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+                {isRolePermissionsEmpty && (
+                  <p className="text-[11px] font-bold text-rose-600 mt-1 flex items-center gap-1">
+                    <span>⚠</span> Pilih minimal satu hak akses modul sistem untuk role ini
+                  </p>
+                )}
+              </div>
+
+              <div className="flex gap-2.5 pt-3 border-t border-slate-100">
+                <button
+                  type="submit"
+                  className="inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl bg-[#06305d] hover:bg-[#0a4583] text-white font-bold transition shadow-xs active:scale-95 cursor-pointer"
+                >
+                  <span>Simpan Role Baru</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={backToRbacAkses}
+                  className="px-4 py-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold transition cursor-pointer"
+                >
+                  Batal
+                </button>
+              </div>
+            </form>
+          </div>
+
+          {/* Modal Validasi Role */}
+          {roleValidationModal && (
+            <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-xs p-4 animate-in fade-in duration-150">
+              <div className="bg-white rounded-3xl max-w-sm w-full p-6 shadow-2xl border border-rose-100 text-center animate-in zoom-in-95 duration-150">
+                <div className="w-14 h-14 rounded-2xl bg-rose-50 text-rose-600 border border-rose-200 flex items-center justify-center mx-auto mb-4 shadow-xs">
+                  <svg className="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                  </svg>
+                </div>
+
+                <h3 className="text-base font-black text-slate-900 mb-1.5">Bagian Formulir Wajib Terisi</h3>
+                <p className="text-xs text-slate-500 leading-relaxed mb-4">{roleValidationError}</p>
+
+                <button
+                  type="button"
+                  onClick={() => setRoleValidationModal(false)}
+                  className="w-full py-2.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold transition shadow-sm active:scale-95 cursor-pointer"
+                >
+                  Mengerti, Lengkapi Data
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* Modal Sukses Buat Role Baru */}
+          {createdRoleSuccessModal && (
+            <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-xs p-4 animate-in fade-in duration-150">
+              <div className="bg-white rounded-3xl max-w-sm w-full p-6 shadow-2xl border border-emerald-100 text-center animate-in zoom-in-95 duration-150">
+                <div className="w-16 h-16 rounded-2xl bg-emerald-50 text-emerald-600 border border-emerald-200 flex items-center justify-center mx-auto mb-4 shadow-xs">
+                  <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M5 13l4 4L19 7" />
+                  </svg>
+                </div>
+
+                <h3 className="text-lg font-black text-slate-900 mb-1.5">Role Baru Berhasil Dibuat!</h3>
+                <p className="text-xs text-slate-600 leading-relaxed mb-4">
+                  Role <strong className="text-slate-900 font-black">{lastCreatedRole?.nama}</strong> telah sukses tersimpan dengan {lastCreatedRole?.permissions.length} hak akses modul aktif. Role ini kini dapat langsung dipilih saat menambah pengguna baru.
+                </p>
+
+                <div className="p-3 bg-emerald-50/70 border border-emerald-200 rounded-2xl mb-5 text-[11px] text-emerald-800 font-semibold flex items-center justify-center gap-2">
+                  <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+                  <span>Role kustom aktif di sistem</span>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={handleCloseCreatedRoleSuccessModal}
+                  className="w-full py-2.5 rounded-xl bg-[#06305d] hover:bg-[#0a4583] text-white text-xs font-bold transition shadow-sm active:scale-95 flex items-center justify-center gap-2 cursor-pointer"
+                >
+                  <span>Kembali ke Pengelolaan Akses</span>
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M14 5l7 7m0 0l-7 7m7-7H3" />
+                  </svg>
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
+      );
+    }
+
+    // --------------------------------------------------------
+    // KONDISI 2D: HALAMAN DETAIL ROLE TERSEBUT
+    // --------------------------------------------------------
+    if (rbacTab === 'akses' && selectedRoleId) {
+      const activeRole = roles.find((r) => r.id === selectedRoleId);
+
+      if (!activeRole) {
+        return (
+          <div className="max-w-3xl mx-auto space-y-5 animate-in fade-in duration-150">
+            <div className="flex items-center gap-2 sm:gap-3">
+              <button
+                onClick={backToRbacAkses}
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white hover:bg-slate-100 border border-slate-200 text-xs font-bold text-slate-700 shadow-xs transition active:scale-95 cursor-pointer"
+              >
+                <svg className="w-4 h-4 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M15 19l-7-7 7-7" />
+                </svg>
+                <span>Kembali ke Pengelolaan Akses</span>
+              </button>
+            </div>
+
+            <div className="bg-white rounded-3xl p-8 border border-slate-200 text-center shadow-xs">
+              <p className="text-sm font-bold text-slate-800">Role Tidak Ditemukan</p>
+              <p className="text-xs text-slate-500 mt-1">Data role mungkin telah dihapus.</p>
+              <button
+                onClick={backToRbacAkses}
+                className="mt-4 px-4 py-2 rounded-xl bg-[#06305d] text-white text-xs font-bold cursor-pointer"
+              >
+                Kembali ke Daftar Role
+              </button>
+            </div>
+          </div>
+        );
+      }
+
+      const usersWithThisRole =
+        (activeRole.id === 'superadmin' ? 1 : 0) +
+        users.filter((u) => u.role === activeRole.id || u.role.toLowerCase() === activeRole.nama.toLowerCase()).length;
+
+      return (
+        <div className="max-w-3xl mx-auto space-y-5 animate-in fade-in duration-150">
+          {/* Tombol Back */}
+          <div className="flex items-center gap-2 sm:gap-3">
+            <button
+              onClick={backToRbacAkses}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white hover:bg-slate-100 border border-slate-200 text-xs font-bold text-slate-700 shadow-xs transition active:scale-95 cursor-pointer"
+            >
+              <svg className="w-4 h-4 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M15 19l-7-7 7-7" />
+              </svg>
+              <span>Kembali</span>
+              <span className="hidden sm:inline"> ke Pengelolaan Akses</span>
+            </button>
+            <span className="hidden sm:inline text-xs text-slate-400">/</span>
+            <span className="hidden sm:inline text-xs font-semibold text-slate-600">Detail Role: {activeRole.nama}</span>
+          </div>
+
+          {/* Kartu Profil Detail Role */}
+          <div className="bg-white rounded-3xl p-6 border border-slate-200 shadow-xs space-y-6">
+            <div className="flex flex-col sm:flex-row sm:items-center gap-5">
+              <div className="w-16 h-16 rounded-2xl bg-gradient-to-tr from-[#06305d] to-[#0a529b] text-white flex items-center justify-center font-black text-2xl shadow-md shrink-0">
+                {activeRole.nama.charAt(0).toUpperCase()}
+              </div>
+
+              <div className="flex-1 min-w-0">
+                <div className="flex flex-wrap items-center gap-2 mb-1">
+                  <h2 className="text-xl font-black text-slate-900 leading-tight">{activeRole.nama}</h2>
+                  {activeRole.isSystem ? (
+                    <span className="px-2.5 py-0.5 rounded-full bg-slate-100 text-slate-700 border border-slate-200 text-[10px] font-bold">
+                      Role Bawaan Sistem
+                    </span>
+                  ) : (
+                    <span className="px-2.5 py-0.5 rounded-full bg-emerald-100 text-emerald-800 border border-emerald-200 text-[10px] font-bold">
+                      Role Kustom
+                    </span>
+                  )}
+                </div>
+                <p className="text-xs text-slate-500 font-mono">Kode ID: {activeRole.id}</p>
+                <p className="text-[11px] text-slate-400 mt-1">
+                  Digunakan oleh {usersWithThisRole} akun pengguna terdaftar
+                </p>
+              </div>
+
+              <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-emerald-50 text-emerald-800 border border-emerald-200 text-xs font-bold self-start sm:self-auto">
+                <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+                Role Aktif
+              </span>
+            </div>
+
+            {/* Deskripsi Role */}
+            <div className="p-4 bg-slate-50 rounded-2xl border border-slate-100 text-xs">
+              <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-1">Deskripsi & Ruang Lingkup Peran</p>
+              <p className="text-slate-700 leading-relaxed">{activeRole.deskripsi}</p>
+            </div>
+
+            {/* Proteksi Khusus Superadmin */}
+            {activeRole.id === 'superadmin' ? (
+              <div className="p-3.5 bg-purple-50 border border-purple-200 rounded-2xl text-xs text-purple-900">
+                <p className="font-bold flex items-center gap-1.5">
+                  <span>★</span> Role Superadmin Terproteksi
+                </p>
+                <p className="text-[11px] text-purple-700 mt-0.5 leading-relaxed">
+                  Superadmin adalah peran administrator inti dan memiliki hak akses 100% pada seluruh modul demi integritas tata kelola sistem.
+                </p>
+              </div>
+            ) : null}
+
+            {/* Rincian Hak Akses Modul Sistem */}
+            <div className="space-y-3 pt-1">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h4 className="text-xs font-bold text-slate-700 uppercase tracking-wider">
+                    Rincian Wewenang Modul Sistem
+                  </h4>
+                  <p className="text-[11px] text-slate-400 mt-0.5">
+                    {activeRole.permissions.length} dari {SYSTEM_PERMISSIONS.length} modul aktif diizinkan
+                  </p>
+                </div>
+
+                {activeRole.id !== 'superadmin' && !isEditingRolePermissions && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setDetailEditPermissions([...activeRole.permissions]);
+                      setIsEditingRolePermissions(true);
+                    }}
+                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-[#06305d] hover:bg-[#0a4583] text-white text-xs font-bold transition shadow-xs active:scale-95 cursor-pointer"
+                  >
+                    <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                    </svg>
+                    <span>Ubah Hak Akses Modul</span>
+                  </button>
+                )}
+              </div>
+
+              {/* Mode Edit vs Mode Lihat */}
+              {isEditingRolePermissions ? (
+                <div className="space-y-3 bg-slate-50 p-4 rounded-2xl border border-slate-200 animate-in fade-in duration-150">
+                  <div className="flex items-center justify-between border-b border-slate-200 pb-2">
+                    <p className="text-xs font-bold text-slate-800">Pilih Modul yang Diizinkan:</p>
+                    <div className="flex gap-2 text-[11px]">
+                      <button
+                        type="button"
+                        onClick={() => setDetailEditPermissions(SYSTEM_PERMISSIONS.map((p) => p.id))}
+                        className="text-[#06305d] font-bold hover:underline cursor-pointer"
+                      >
+                        Pilih Semua
+                      </button>
+                      <span className="text-slate-300">•</span>
+                      <button
+                        type="button"
+                        onClick={() => setDetailEditPermissions([])}
+                        className="text-slate-400 font-bold hover:text-slate-600 cursor-pointer"
+                      >
+                        Kosongkan
+                      </button>
+                    </div>
+                  </div>
+
+                  <div className="space-y-2">
+                    {SYSTEM_PERMISSIONS.map((perm) => {
+                      const isChecked = detailEditPermissions.includes(perm.id);
+                      return (
+                        <div
+                          key={perm.id}
+                          onClick={() => handleToggleDetailPermission(perm.id)}
+                          className={`p-3 rounded-xl border transition cursor-pointer flex items-start gap-3 ${
+                            isChecked
+                              ? 'bg-white border-[#06305d] shadow-2xs text-[#06305d]'
+                              : 'bg-white/60 border-slate-200 text-slate-500 hover:bg-white'
+                          }`}
+                        >
+                          <input
+                            type="checkbox"
+                            checked={isChecked}
+                            onChange={() => {}}
+                            className="mt-0.5 rounded text-[#06305d] focus:ring-[#06305d] cursor-pointer"
+                          />
+                          <div className="flex-1 min-w-0">
+                            <p className="font-bold text-xs text-slate-900">{perm.nama}</p>
+                            <p className="text-[11px] text-slate-500 mt-0.5">{perm.deskripsi}</p>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+
+                  <div className="flex gap-2.5 pt-2">
+                    <button
+                      type="button"
+                      onClick={() => handleSaveDetailRolePermissions(activeRole.id)}
+                      className="px-4 py-2 rounded-xl bg-[#06305d] hover:bg-[#0a4583] text-white text-xs font-bold transition shadow-xs active:scale-95 cursor-pointer"
+                    >
+                      Simpan Perubahan Hak Akses
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setIsEditingRolePermissions(false)}
+                      className="px-4 py-2 rounded-xl bg-slate-200 hover:bg-slate-300 text-slate-700 text-xs font-semibold transition cursor-pointer"
+                    >
+                      Batal
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <div className="space-y-2 text-xs">
+                  {SYSTEM_PERMISSIONS.map((perm) => {
+                    const isAllowed =
+                      activeRole.id === 'superadmin' ? true : activeRole.permissions.includes(perm.id);
+                    return (
+                      <div
+                        key={perm.id}
+                        className={`p-3.5 rounded-2xl border flex items-center justify-between gap-3 ${
+                          isAllowed ? 'bg-slate-50 border-slate-200/90' : 'bg-slate-50/40 border-slate-100 opacity-60'
+                        }`}
+                      >
+                        <div>
+                          <p className={`font-bold ${isAllowed ? 'text-slate-900' : 'text-slate-500'}`}>
+                            {perm.nama}
+                          </p>
+                          <p className="text-[11px] text-slate-400 mt-0.5">{perm.deskripsi}</p>
+                        </div>
+
+                        {isAllowed ? (
+                          <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-emerald-50 text-emerald-700 border border-emerald-200 font-bold text-[11px] shrink-0">
+                            <span>✓</span>
+                            <span>Diizinkan</span>
+                          </span>
+                        ) : (
+                          <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-slate-100 text-slate-400 border border-slate-200 font-bold text-[11px] shrink-0">
+                            <span>✗</span>
+                            <span>Tidak Diizinkan</span>
+                          </span>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+
+            {/* Aksi Tambahan: Hapus Role Kustom */}
+            {!activeRole.isSystem && (
+              <div className="pt-4 border-t border-slate-100 flex items-center justify-between gap-3">
+                <span className="text-xs text-slate-500">
+                  Role kustom dapat dihapus selama tidak ada akun yang sedang menggunakannya.
+                </span>
+
+                <button
+                  type="button"
+                  onClick={() => handleRequestDeleteRole(activeRole)}
+                  className="inline-flex items-center gap-1.5 px-4 py-2.5 rounded-xl bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 text-xs font-bold transition active:scale-95 cursor-pointer"
+                >
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                  </svg>
+                  <span>Hapus Role Ini</span>
+                </button>
+              </div>
+            )}
+          </div>
+
+          {/* Modal Sukses Update Hak Akses */}
+          {editRoleSuccessModal && (
+            <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-xs p-4 animate-in fade-in duration-150">
+              <div className="bg-white rounded-3xl max-w-sm w-full p-6 shadow-2xl border border-emerald-100 text-center animate-in zoom-in-95 duration-150">
+                <div className="w-16 h-16 rounded-2xl bg-emerald-50 text-emerald-600 border border-emerald-200 flex items-center justify-center mx-auto mb-4 shadow-xs">
+                  <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M5 13l4 4L19 7" />
+                  </svg>
+                </div>
+
+                <h3 className="text-base font-black text-slate-900 mb-1.5">Hak Akses Berhasil Diperbarui!</h3>
+                <p className="text-xs text-slate-600 leading-relaxed mb-4">
+                  Wewenang hak akses modul untuk role <strong>{activeRole.nama}</strong> telah sukses diperbarui dan diterapkan ke seluruh pengguna terkait.
+                </p>
+
+                <button
+                  type="button"
+                  onClick={() => setEditRoleSuccessModal(false)}
+                  className="w-full py-2.5 rounded-xl bg-[#06305d] hover:bg-[#0a4583] text-white text-xs font-bold transition shadow-sm active:scale-95 cursor-pointer"
+                >
+                  Selesai
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* Modal Alert Tidak Bisa Hapus Karena Sedang Digunakan */}
+          {roleDeleteAlertMsg && (
+            <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-xs p-4 animate-in fade-in duration-150">
+              <div className="bg-white rounded-3xl max-w-sm w-full p-6 shadow-2xl border border-amber-200 text-center animate-in zoom-in-95 duration-150">
+                <div className="w-14 h-14 rounded-2xl bg-amber-50 text-amber-600 border border-amber-200 flex items-center justify-center mx-auto mb-4 shadow-xs">
+                  <svg className="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                  </svg>
+                </div>
+
+                <h3 className="text-base font-black text-slate-900 mb-1.5">Tidak Dapat Menghapus Role</h3>
+                <p className="text-xs text-slate-600 leading-relaxed mb-5">{roleDeleteAlertMsg}</p>
+
+                <button
+                  type="button"
+                  onClick={() => setRoleDeleteAlertMsg('')}
+                  className="w-full py-2.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold transition shadow-sm active:scale-95 cursor-pointer"
+                >
+                  Mengerti
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* Modal Konfirmasi Hapus Role */}
+          {roleToDelete && (
+            <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 backdrop-blur-xs p-4 animate-in fade-in duration-150">
+              <div className="bg-white rounded-3xl max-w-sm w-full p-6 shadow-2xl border border-slate-100 text-center animate-in zoom-in-95 duration-150">
+                <div className="w-14 h-14 rounded-2xl bg-rose-50 text-rose-600 border border-rose-200 flex items-center justify-center mx-auto mb-4">
+                  <svg className="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                  </svg>
+                </div>
+
+                <h3 className="text-base font-black text-slate-900 mb-1.5">Hapus Role "{roleToDelete.nama}"?</h3>
+                <p className="text-xs text-slate-500 leading-relaxed mb-6">
+                  Apakah Anda yakin ingin menghapus role kustom ini? Aksi ini tidak dapat dibatalkan.
+                </p>
+
+                <div className="flex gap-2.5">
+                  <button
+                    type="button"
+                    onClick={() => setRoleToDelete(null)}
+                    className="flex-1 py-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold transition active:scale-95 cursor-pointer"
+                  >
+                    Batal
+                  </button>
+                  <button
+                    type="button"
+                    onClick={confirmDeleteRole}
+                    className="flex-1 py-2.5 rounded-xl bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold transition shadow-sm active:scale-95 cursor-pointer"
+                  >
+                    Ya, Hapus
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+      );
+    }
+
+    // --------------------------------------------------------
+    // KONDISI 2E: HALAMAN PROFIL PENGGUNA TERPILIH DARI LIST
+    // --------------------------------------------------------
+    if (selectedUserId) {
+      const allUsers = getAllUsers();
+      const targetUser = allUsers.find((u) => u.id === selectedUserId);
+
+      if (!targetUser) {
+        return (
+          <div className="max-w-3xl mx-auto space-y-5 animate-in fade-in duration-150">
+            <div className="flex items-center gap-2 sm:gap-3">
+              <button
+                onClick={() => backToRbacTab('tambah')}
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white hover:bg-slate-100 border border-slate-200 text-xs font-bold text-slate-700 shadow-xs transition active:scale-95 cursor-pointer"
+              >
+                <svg className="w-4 h-4 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M15 19l-7-7 7-7" />
+                </svg>
+                <span>Kembali ke Tambah Pengguna</span>
+              </button>
+            </div>
+
+            <div className="bg-white rounded-3xl p-8 border border-slate-200 text-center shadow-xs">
+              <p className="text-sm font-bold text-slate-800">Pengguna Tidak Ditemukan</p>
+              <p className="text-xs text-slate-500 mt-1">Data pengguna mungkin telah dihapus.</p>
+              <button
+                onClick={() => backToRbacTab('tambah')}
+                className="mt-4 px-4 py-2 rounded-xl bg-[#06305d] text-white text-xs font-bold cursor-pointer"
+              >
+                Kembali ke Daftar Pengguna
+              </button>
+            </div>
+          </div>
+        );
+      }
+
+      const isSelf = targetUser.id === currentUser?.id;
+      return renderUserProfileView(targetUser, isSelf, () => backToRbacTab('tambah'), 'ke Tambah Pengguna');
+    }
+
+    // --------------------------------------------------------
+    // KONDISI 2F: HALAMAN UTAMA MANAJEMEN PENGGUNA RBAC DENGAN TABS
+    // --------------------------------------------------------
     const filteredUsers = getFilteredAndSortedUsers();
-    const superadminCount = 1 + users.filter((u) => u.role === 'superadmin').length;
-    const panitiaCount = users.filter((u) => u.role === 'panitia').length;
-    const scannerCount = users.filter((u) => u.role === 'scanner').length;
 
     return (
       <div className="max-w-4xl mx-auto space-y-5 animate-in fade-in duration-150">
-        {/* Tombol Back & Header Ringkas Mobile */}
+        {/* Tombol Back & Header Ringkas */}
         <div className="flex items-center justify-between gap-3">
           <div className="flex items-center gap-2 sm:gap-3">
             <button
               onClick={backToMenu}
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white hover:bg-slate-100 border border-slate-200 text-xs font-bold text-slate-700 shadow-xs transition active:scale-95"
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white hover:bg-slate-100 border border-slate-200 text-xs font-bold text-slate-700 shadow-xs transition active:scale-95 cursor-pointer"
             >
               <svg className="w-4 h-4 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M15 19l-7-7 7-7" />
@@ -468,614 +1867,262 @@ export function Pengaturan() {
           </div>
         </div>
 
-        {currentUser?.role !== 'superadmin' ? (
-          /* Locked State untuk Non-Superadmin */
-          <div className="bg-white rounded-3xl p-8 border border-amber-200 shadow-xs text-center max-w-lg mx-auto">
-            <div className="w-14 h-14 rounded-2xl bg-amber-50 text-amber-600 flex items-center justify-center mx-auto mb-3 border border-amber-200">
-              <svg className="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
-              </svg>
-            </div>
-            <h3 className="text-base font-black text-slate-800 mb-1">Akses Terbatas: Khusus Superadmin</h3>
-            <p className="text-xs text-slate-500 mb-4 leading-relaxed">
-              Akun Anda memiliki role <strong className="text-slate-800">{currentUser?.role}</strong>. Modul penambahan pengguna dan konfigurasi hak akses (RBAC) hanya dapat dikelola oleh Superadmin.
-            </p>
+        <div className="space-y-4">
+          {/* Tab Navigasi RBAC: Hanya Teks, Tanpa Icon & Tanpa Notif Angka */}
+          <div className="flex p-1 bg-slate-200/80 rounded-2xl gap-1 text-xs font-bold">
             <button
-              onClick={backToMenu}
-              className="px-4 py-2 rounded-xl bg-slate-900 text-white text-xs font-bold shadow-sm transition active:scale-95"
+              type="button"
+              onClick={() => switchRbacTab('akses')}
+              className={`flex-1 py-2.5 px-3 rounded-xl transition-all duration-150 text-center cursor-pointer ${
+                rbacTab === 'akses'
+                  ? 'bg-white text-[#06305d] shadow-xs'
+                  : 'text-slate-600 hover:text-slate-900 hover:bg-white/40'
+              }`}
             >
-              Kembali ke Menu Pengaturan
+              Pengelolaan Akses
+            </button>
+
+            <button
+              type="button"
+              onClick={() => switchRbacTab('tambah')}
+              className={`flex-1 py-2.5 px-3 rounded-xl transition-all duration-150 text-center cursor-pointer ${
+                rbacTab === 'tambah'
+                  ? 'bg-white text-[#06305d] shadow-xs'
+                  : 'text-slate-600 hover:text-slate-900 hover:bg-white/40'
+              }`}
+            >
+              Tambah Pengguna
             </button>
           </div>
-        ) : (
-          <div className="space-y-4">
-            {/* Tab Navigasi RBAC: Pengelolaan Akses & Tambah Pengguna */}
-            <div className="flex p-1 bg-slate-200/80 rounded-2xl gap-1 text-xs font-bold">
-              <button
-                type="button"
-                onClick={() => {
-                  setRbacTab('akses');
-                  setFormError('');
-                  setFormSuccess('');
-                }}
-                className={`flex-1 py-2.5 px-3 rounded-xl transition-all duration-150 flex items-center justify-center gap-2 ${
-                  rbacTab === 'akses'
-                    ? 'bg-white text-[#06305d] shadow-xs'
-                    : 'text-slate-600 hover:text-slate-900 hover:bg-white/40'
-                }`}
-              >
-                <svg className="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
-                </svg>
-                <span>Pengelolaan Akses</span>
-              </button>
 
-              <button
-                type="button"
-                onClick={() => {
-                  setRbacTab('tambah');
-                  setFormError('');
-                  setFormSuccess('');
-                }}
-                className={`flex-1 py-2.5 px-3 rounded-xl transition-all duration-150 flex items-center justify-center gap-2 ${
-                  rbacTab === 'tambah'
-                    ? 'bg-white text-[#06305d] shadow-xs'
-                    : 'text-slate-600 hover:text-slate-900 hover:bg-white/40'
-                }`}
-              >
-                <svg className="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z" />
-                </svg>
-                <span>Tambah Pengguna</span>
-                <span className="px-1.5 py-0.5 rounded-md bg-slate-100 text-[10px] text-slate-600 font-mono">
-                  {users.length + 1}
-                </span>
-              </button>
-            </div>
-
-            {/* TAB 1: PENGELOLAAN AKSES */}
-            {rbacTab === 'akses' ? (
-              <div className="bg-white rounded-3xl p-5 sm:p-6 border border-slate-200 shadow-xs space-y-6 animate-in fade-in duration-150">
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-                  <div>
-                    <h3 className="text-base font-black text-slate-800">Matriks Hak Akses & Tata Kelola RBAC</h3>
-                    <p className="text-xs text-slate-500 mt-0.5">
-                      Rincian wewenang operasional untuk setiap tingkatan pengguna pada aplikasi EvenScan.
-                    </p>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => setRbacTab('tambah')}
-                    className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-[#06305d] hover:bg-[#0a4583] text-white text-xs font-bold transition shadow-xs active:scale-95 self-start sm:self-auto"
-                  >
-                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
-                    </svg>
-                    <span>Kelola Pengguna di Tab Tambah Pengguna →</span>
-                  </button>
+          {/* ======================================================== */}
+          {/* TAB 1: PENGELOLAAN AKSES (LIST FORMAT NAMA ROLE SAJA)    */}
+          {/* ======================================================== */}
+          {rbacTab === 'akses' ? (
+            <div className="space-y-4 animate-in fade-in duration-150">
+              {/* Header Pengelolaan Akses & Tombol Buat Role Baru */}
+              <div className="bg-white rounded-3xl p-5 sm:p-6 border border-slate-200 shadow-xs flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                <div>
+                  <h3 className="text-base font-black text-slate-900">Pengelolaan Role & Hak Akses (RBAC)</h3>
+                  <p className="text-xs text-slate-500 mt-1 max-w-xl leading-relaxed">
+                    Kelola peran pengguna dan konfigurasi hak akses modul sistem. Klik salah satu role untuk melihat dan mengedit wewenangnya.
+                  </p>
                 </div>
 
-                {/* Ringkasan Distribusi Akun */}
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                  <div className="p-4 bg-purple-50/70 border border-purple-200/80 rounded-2xl">
-                    <p className="text-[10px] font-bold text-purple-700 uppercase tracking-wider">Superadmin</p>
-                    <p className="text-2xl font-black text-purple-900 mt-1">{superadminCount} Akun</p>
-                    <p className="text-[11px] text-purple-600 mt-0.5">Akses tertinggi & manajemen RBAC</p>
-                  </div>
-
-                  <div className="p-4 bg-sky-50/70 border border-sky-200/80 rounded-2xl">
-                    <p className="text-[10px] font-bold text-sky-700 uppercase tracking-wider">Panitia Registrasi</p>
-                    <p className="text-2xl font-black text-sky-900 mt-1">{panitiaCount} Akun</p>
-                    <p className="text-[11px] text-sky-600 mt-0.5">Verifikasi berkas & scanner tiket</p>
-                  </div>
-
-                  <div className="p-4 bg-amber-50/70 border border-amber-200/80 rounded-2xl">
-                    <p className="text-[10px] font-bold text-amber-700 uppercase tracking-wider">Petugas Scanner</p>
-                    <p className="text-2xl font-black text-amber-900 mt-1">{scannerCount} Akun</p>
-                    <p className="text-[11px] text-amber-600 mt-0.5">Pemindaian QR presensi di gerbang</p>
-                  </div>
-                </div>
-
-                {/* Tabel Matriks Hak Akses per Fitur */}
-                <div className="space-y-3">
-                  <h4 className="text-xs font-bold text-slate-700 uppercase tracking-wider">
-                    Matriks Perbandingan Wewenang Fitur
-                  </h4>
-                  <div className="rounded-2xl border border-slate-200 overflow-hidden">
-                    <div className="overflow-x-auto">
-                      <table className="w-full text-left border-collapse text-xs">
-                        <thead>
-                          <tr className="bg-slate-50 border-b border-slate-200 text-[10px] font-bold uppercase tracking-wider text-slate-500">
-                            <th className="py-3 px-4">Fitur / Modul Sistem</th>
-                            <th className="py-3 px-4 text-center">Superadmin</th>
-                            <th className="py-3 px-4 text-center">Panitia Registrasi</th>
-                            <th className="py-3 px-4 text-center">Petugas Scanner</th>
-                          </tr>
-                        </thead>
-                        <tbody className="divide-y divide-slate-100">
-                          <tr>
-                            <td className="py-3 px-4 font-semibold text-slate-800">
-                              Dashboard & Statistik Kehadiran
-                            </td>
-                            <td className="py-3 px-4 text-center text-emerald-600 font-black">✓</td>
-                            <td className="py-3 px-4 text-center text-emerald-600 font-black">✓</td>
-                            <td className="py-3 px-4 text-center text-slate-300 font-bold">✗</td>
-                          </tr>
-                          <tr>
-                            <td className="py-3 px-4 font-semibold text-slate-800">
-                              Verifikasi Berkas & Tiket WhatsApp
-                            </td>
-                            <td className="py-3 px-4 text-center text-emerald-600 font-black">✓</td>
-                            <td className="py-3 px-4 text-center text-emerald-600 font-black">✓</td>
-                            <td className="py-3 px-4 text-center text-slate-300 font-bold">✗</td>
-                          </tr>
-                          <tr>
-                            <td className="py-3 px-4 font-semibold text-slate-800">
-                              Fast Action Scanner Kamera QR
-                            </td>
-                            <td className="py-3 px-4 text-center text-emerald-600 font-black">✓</td>
-                            <td className="py-3 px-4 text-center text-emerald-600 font-black">✓</td>
-                            <td className="py-3 px-4 text-center text-emerald-600 font-black">✓</td>
-                          </tr>
-                          <tr>
-                            <td className="py-3 px-4 font-semibold text-slate-800">
-                              Riwayat Scan Peserta (History)
-                            </td>
-                            <td className="py-3 px-4 text-center text-emerald-600 font-black">✓</td>
-                            <td className="py-3 px-4 text-center text-emerald-600 font-black">✓</td>
-                            <td className="py-3 px-4 text-center text-emerald-600 font-black">✓</td>
-                          </tr>
-                          <tr>
-                            <td className="py-3 px-4 font-semibold text-slate-800">
-                              Manajemen Pengguna & Tambah Akun (RBAC)
-                            </td>
-                            <td className="py-3 px-4 text-center text-emerald-600 font-black">✓</td>
-                            <td className="py-3 px-4 text-center text-slate-300 font-bold">✗</td>
-                            <td className="py-3 px-4 text-center text-slate-300 font-bold">✗</td>
-                          </tr>
-                        </tbody>
-                      </table>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Panduan Deskripsi Role */}
-                <div className="space-y-3 pt-1">
-                  <h4 className="text-xs font-bold text-slate-700 uppercase tracking-wider">
-                    Panduan Deskripsi Peran (Role Guide)
-                  </h4>
-                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs">
-                    <div className="p-3.5 bg-slate-50 rounded-2xl border border-slate-200/80">
-                      <p className="font-bold text-purple-900">1. Superadmin</p>
-                      <p className="text-[11px] text-slate-600 mt-1 leading-relaxed">
-                        Koordinator / Tim IT. Akses seluruh modul aplikasi, otorisasi pendaftar, dan wewenang mutlak menambah/menghapus panitia.
-                      </p>
-                    </div>
-                    <div className="p-3.5 bg-slate-50 rounded-2xl border border-slate-200/80">
-                      <p className="font-bold text-sky-900">2. Panitia Registrasi</p>
-                      <p className="text-[11px] text-slate-600 mt-1 leading-relaxed">
-                        Pemeriksaan bukti transfer, konfirmasi validitas pembayaran, kirim tiket WhatsApp otomatis, dan scan presensi peserta.
-                      </p>
-                    </div>
-                    <div className="p-3.5 bg-slate-50 rounded-2xl border border-slate-200/80">
-                      <p className="font-bold text-amber-900">3. Petugas Scanner</p>
-                      <p className="text-[11px] text-slate-600 mt-1 leading-relaxed">
-                        Difokuskan untuk gatekeeper di pintu masuk venue guna memindai QR code tiket secara cepat tanpa akses data keuangan.
-                      </p>
-                    </div>
-                  </div>
-                </div>
+                {/* Tombol Buat Role Baru: Membuka Halaman Baru Form Buat Role Baru */}
+                <button
+                  type="button"
+                  onClick={openCreateRolePage}
+                  className="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-[#06305d] hover:bg-[#0a4583] text-white text-xs font-bold transition shadow-xs active:scale-95 cursor-pointer shrink-0"
+                >
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M12 4v16m8-8H4" />
+                  </svg>
+                  <span>Buat Role Baru</span>
+                </button>
               </div>
-            ) : (
-              /* TAB 2: TAMBAH PENGGUNA (SEARCH, SORT, BUTTON TAMBAH PENGGUNA, DAN LIST PENGGUNA) */
-              <div className="space-y-4 animate-in fade-in duration-150">
-                {/* Notifikasi Error & Success */}
-                {formSuccess && (
-                  <div className="p-3.5 bg-emerald-50 text-emerald-800 text-xs rounded-2xl border border-emerald-200 flex items-center justify-between gap-3">
-                    <div className="flex items-center gap-2">
-                      <svg className="w-4 h-4 text-emerald-600 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7" />
-                      </svg>
-                      <span className="font-semibold">{formSuccess}</span>
-                    </div>
-                    <button
-                      onClick={() => setFormSuccess('')}
-                      className="text-emerald-700 hover:text-emerald-900 text-xs font-bold"
-                    >
-                      ✕
-                    </button>
-                  </div>
-                )}
 
-                {formError && (
-                  <div className="p-3.5 bg-rose-50 text-rose-700 text-xs rounded-2xl border border-rose-200 flex items-center justify-between gap-3">
-                    <div className="flex items-center gap-2">
-                      <svg className="w-4 h-4 text-rose-500 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                      </svg>
-                      <span>{formError}</span>
-                    </div>
-                    <button
-                      onClick={() => setFormError('')}
-                      className="text-rose-700 hover:text-rose-900 text-xs font-bold"
-                    >
-                      ✕
-                    </button>
-                  </div>
-                )}
-
-                {/* Toolbar RBAC: Search di atas, Sort di sampingnya, dan Button Tambah Pengguna di bawahnya pada mobile (proporsional di desktop) */}
-                <div className="bg-white rounded-3xl p-4 sm:p-5 border border-slate-200 shadow-xs space-y-3 sm:space-y-0 sm:flex sm:items-center sm:justify-between sm:gap-4">
-                  {/* Bagian Atas Mobile / Bagian Kiri Desktop: Search + Sort Berdampingan */}
-                  <div className="flex items-center gap-2 flex-1 sm:max-w-md">
-                    {/* Menu Search */}
-                    <div className="relative flex-1">
-                      <input
-                        type="text"
-                        placeholder="Cari nama, username..."
-                        value={userSearch}
-                        onChange={(e) => setUserSearch(e.target.value)}
-                        className="w-full pl-9 pr-8 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-[#06305d]/20 focus:border-[#06305d] transition"
-                      />
-                      <svg
-                        className="w-4 h-4 text-slate-400 absolute left-3 top-3 pointer-events-none"
-                        fill="none"
-                        stroke="currentColor"
-                        viewBox="0 0 24 24"
-                      >
-                        <path
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          strokeWidth="2"
-                          d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
-                        />
-                      </svg>
-                      {userSearch && (
-                        <button
-                          onClick={() => setUserSearch('')}
-                          className="absolute right-2.5 top-2.5 w-4 h-4 rounded-full bg-slate-200 text-slate-500 hover:text-slate-700 flex items-center justify-center text-[10px]"
-                        >
-                          ✕
-                        </button>
-                      )}
-                    </div>
-
-                    {/* Menu Sort di Samping Search */}
-                    <div className="shrink-0">
-                      <select
-                        value={userSort}
-                        onChange={(e) => setUserSort(e.target.value as any)}
-                        className="px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold text-slate-700 focus:outline-none focus:ring-2 focus:ring-[#06305d]/20 focus:border-[#06305d] transition cursor-pointer"
-                      >
-                        <option value="terbaru">Terbaru</option>
-                        <option value="terlama">Terlama</option>
-                        <option value="nama_asc">Nama (A-Z)</option>
-                        <option value="nama_desc">Nama (Z-A)</option>
-                        <option value="role">Role</option>
-                      </select>
-                    </div>
-                  </div>
-
-                  {/* Di Bawah Search & Sort (Mobile) / Sebelah Kanan (Desktop): Button Tambah Pengguna */}
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setShowAddForm(!showAddForm);
-                      setFormError('');
-                    }}
-                    className={`w-full sm:w-auto inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl font-bold text-xs transition shadow-xs active:scale-95 ${
-                      showAddForm
-                        ? 'bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-200'
-                        : 'bg-[#06305d] hover:bg-[#0a4583] text-white'
-                    }`}
-                  >
-                    {showAddForm ? (
-                      <>
-                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
-                        </svg>
-                        <span>Tutup Formulir</span>
-                      </>
-                    ) : (
-                      <>
-                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
-                        </svg>
-                        <span>Tambah Pengguna</span>
-                      </>
-                    )}
-                  </button>
+              {/* LIST ROLE TERDAFTAR: FORMAT HANYA NAMA ROLE SAJA */}
+              <div className="bg-white rounded-3xl p-5 sm:p-6 border border-slate-200 shadow-xs space-y-4">
+                <div>
+                  <h4 className="text-sm font-black text-slate-900">Daftar Role Terdaftar</h4>
+                  <p className="text-xs text-slate-500 mt-0.5">
+                    Menampilkan {roles.length} role terdaftar. Klik nama role untuk membuka halaman detail.
+                  </p>
                 </div>
 
-                {/* Formulir Tambah Pengguna (Expandable / Collapsible ketika button diklik) */}
-                {showAddForm && (
-                  <div className="bg-white rounded-3xl p-5 sm:p-6 border border-[#06305d]/20 shadow-sm space-y-4 animate-in fade-in slide-in-from-top-2 duration-150">
-                    <div className="flex items-center justify-between border-b border-slate-100 pb-3">
-                      <div>
-                        <h3 className="text-sm font-black text-slate-900">Formulir Tambah Pengguna Admin Baru</h3>
-                        <p className="text-xs text-slate-500 mt-0.5">
-                          Lengkapi data di bawah ini untuk membuat kredensial akun panitia baru.
+                <div className="space-y-2.5">
+                  {roles.map((role) => (
+                    <div
+                      key={role.id}
+                      onClick={() => openRoleDetail(role.id)}
+                      className="p-4 rounded-2xl bg-white hover:bg-slate-50 border border-slate-200/90 hover:border-slate-300 shadow-2xs hover:shadow-xs transition-all duration-150 active:scale-[0.99] cursor-pointer flex items-center justify-between gap-3 group"
+                    >
+                      {/* Format List: Hanya Menampilkan Nama Role Saja */}
+                      <div className="min-w-0 flex-1">
+                        <p className="font-bold text-slate-900 text-xs sm:text-sm group-hover:text-[#06305d] transition truncate">
+                          {role.nama}
                         </p>
                       </div>
-                      <button
-                        type="button"
-                        onClick={() => setShowAddForm(false)}
-                        className="text-slate-400 hover:text-slate-600 text-xs font-bold"
-                      >
-                        ✕ Tutup
-                      </button>
+
+                      {/* Indikator Klik untuk Masuk ke Halaman Detail Role */}
+                      <div className="flex items-center gap-1.5 text-slate-400 group-hover:text-slate-600 shrink-0">
+                        <svg
+                          className="w-4 h-4 transition group-hover:translate-x-0.5 duration-150"
+                          fill="none"
+                          stroke="currentColor"
+                          viewBox="0 0 24 24"
+                        >
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 5l7 7-7 7" />
+                        </svg>
+                      </div>
                     </div>
-
-                    <form onSubmit={handleCreateUser} className="space-y-4 text-xs">
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
-                        <div>
-                          <label className="block font-bold text-slate-700 mb-1">Nama Lengkap</label>
-                          <input
-                            type="text"
-                            placeholder="Misal: Ahmad Fauzi"
-                            value={newNama}
-                            onChange={(e) => setNewNama(e.target.value)}
-                            required
-                            className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-[#06305d]/20 focus:border-[#06305d]"
-                          />
-                        </div>
-
-                        <div>
-                          <label className="block font-bold text-slate-700 mb-1">Username Login</label>
-                          <input
-                            type="text"
-                            placeholder="Misal: panitia_fauzi"
-                            value={newUsername}
-                            onChange={(e) => setNewUsername(e.target.value.toLowerCase().replace(/\s+/g, ''))}
-                            required
-                            className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl font-mono text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-[#06305d]/20 focus:border-[#06305d]"
-                          />
-                        </div>
-                      </div>
-
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
-                        <div>
-                          <label className="block font-bold text-slate-700 mb-1">Password</label>
-                          <input
-                            type="password"
-                            placeholder="Minimal 6 karakter"
-                            value={newPassword}
-                            onChange={(e) => setNewPassword(e.target.value)}
-                            required
-                            className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-[#06305d]/20 focus:border-[#06305d]"
-                          />
-                        </div>
-
-                        <div>
-                          <label className="block font-bold text-slate-700 mb-1">Tingkat Hak Akses (Role)</label>
-                          <select
-                            value={newRole}
-                            onChange={(e) => setNewRole(e.target.value as any)}
-                            className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-slate-800 font-semibold focus:outline-none focus:ring-2 focus:ring-[#06305d]/20 focus:border-[#06305d]"
-                          >
-                            <option value="panitia">Panitia Registrasi (Verifikasi & Scanner)</option>
-                            <option value="scanner">Petugas Scanner (Khusus Scanner QR Presensi)</option>
-                            <option value="superadmin">Superadmin (Akses Penuh Seluruh Sistem)</option>
-                          </select>
-                        </div>
-                      </div>
-
-                      <div className="p-3 bg-slate-50 rounded-xl text-[11px] text-slate-600 border border-slate-100">
-                        {newRole === 'panitia' && (
-                          <span><strong>Panitia Registrasi:</strong> Memiliki wewenang melihat pendaftar, memverifikasi bukti transfer tiket, dan memindai QR code presensi.</span>
-                        )}
-                        {newRole === 'scanner' && (
-                          <span><strong>Petugas Scanner:</strong> Dikhususkan untuk pemindaian cepat QR code tiket di gate venue acara.</span>
-                        )}
-                        {newRole === 'superadmin' && (
-                          <span><strong>Superadmin:</strong> Wewenang penuh atas seluruh sistem, verifikasi, scanner, dan manajemen akun RBAC.</span>
-                        )}
-                      </div>
-
-                      <div className="flex gap-2.5 pt-1">
-                        <button
-                          type="submit"
-                          disabled={submittingUser}
-                          className="inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl bg-[#06305d] hover:bg-[#0a4583] text-white font-bold transition shadow-xs active:scale-95 disabled:opacity-50"
-                        >
-                          {submittingUser ? (
-                            <>
-                              <div className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                              <span>Menyimpan Pengguna...</span>
-                            </>
-                          ) : (
-                            <span>Simpan Pengguna Baru</span>
-                          )}
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setShowAddForm(false);
-                            setFormError('');
-                          }}
-                          className="px-4 py-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold transition"
-                        >
-                          Batal
-                        </button>
-                      </div>
-                    </form>
+                  ))}
+                </div>
+              </div>
+            </div>
+          ) : (
+            /* ======================================================== */
+            /* TAB 2: TAMBAH PENGGUNA                                    */
+            /* ======================================================== */
+            <div className="space-y-4 animate-in fade-in duration-150">
+              {/* Notifikasi Sukses */}
+              {formSuccess && (
+                <div className="p-3.5 bg-emerald-50 text-emerald-800 text-xs rounded-2xl border border-emerald-200 flex items-center justify-between gap-3">
+                  <div className="flex items-center gap-2">
+                    <svg className="w-4 h-4 text-emerald-600 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7" />
+                    </svg>
+                    <span className="font-semibold">{formSuccess}</span>
                   </div>
-                )}
+                  <button
+                    onClick={() => setFormSuccess('')}
+                    className="text-emerald-700 hover:text-emerald-900 text-xs font-bold cursor-pointer"
+                  >
+                    ✕
+                  </button>
+                </div>
+              )}
 
-                {/* List dari Pengguna yang telah ditambahkan (Di Bawah Button Tambah Pengguna) */}
-                <div className="bg-white rounded-3xl p-5 sm:p-6 border border-slate-200 shadow-xs space-y-4">
-                  {/* Header List */}
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <h3 className="text-sm font-black text-slate-900">List Pengguna Terdaftar</h3>
-                      <p className="text-xs text-slate-500 mt-0.5">
-                        Menampilkan {filteredUsers.length} akun pengguna
-                        {userSearch && <span> untuk kata kunci "{userSearch}"</span>}
-                      </p>
-                    </div>
-
+              {/* Toolbar RBAC: Search, Sort, dan Button Tambah Pengguna */}
+              <div className="bg-white rounded-3xl p-4 sm:p-5 border border-slate-200 shadow-xs space-y-3 sm:space-y-0 sm:flex sm:items-center sm:justify-between sm:gap-4">
+                {/* Search + Sort */}
+                <div className="flex items-center gap-2 flex-1 sm:max-w-md">
+                  {/* Search */}
+                  <div className="relative flex-1">
+                    <input
+                      type="text"
+                      placeholder="Cari nama pengguna..."
+                      value={userSearch}
+                      onChange={(e) => setUserSearch(e.target.value)}
+                      className="w-full pl-9 pr-8 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-[#06305d]/20 focus:border-[#06305d] transition"
+                    />
+                    <svg
+                      className="w-4 h-4 text-slate-400 absolute left-3 top-3 pointer-events-none"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth="2"
+                        d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
+                      />
+                    </svg>
                     {userSearch && (
                       <button
                         onClick={() => setUserSearch('')}
-                        className="text-xs font-bold text-sky-600 hover:text-sky-700 transition"
+                        className="absolute right-2.5 top-2.5 w-4 h-4 rounded-full bg-slate-200 text-slate-500 hover:text-slate-700 flex items-center justify-center text-[10px] cursor-pointer"
                       >
-                        Reset Pencarian
+                        ✕
                       </button>
                     )}
                   </div>
 
-                  {loadingUsers ? (
-                    <div className="py-12 text-center">
-                      <div className="w-7 h-7 border-3 border-[#06305d] border-t-transparent rounded-full animate-spin mx-auto mb-2" />
-                      <p className="text-xs text-slate-400">Memuat data pengguna...</p>
-                    </div>
-                  ) : filteredUsers.length === 0 ? (
-                    <div className="py-12 text-center border-2 border-dashed border-slate-200 rounded-2xl p-6">
-                      <div className="w-12 h-12 rounded-2xl bg-slate-100 text-slate-400 flex items-center justify-center mx-auto mb-3">
-                        <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
-                        </svg>
-                      </div>
-                      <p className="text-xs font-bold text-slate-700">Tidak ada pengguna ditemukan</p>
-                      <p className="text-[11px] text-slate-400 mt-0.5">
-                        {userSearch ? `Tidak ada pengguna dengan nama/username "${userSearch}"` : 'Belum ada pengguna terdaftar.'}
-                      </p>
-                      {userSearch && (
-                        <button
-                          onClick={() => setUserSearch('')}
-                          className="mt-3 px-3 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-xs font-bold text-slate-700 transition"
-                        >
-                          Bersihkan Pencarian
-                        </button>
-                      )}
-                    </div>
-                  ) : (
-                    <>
-                      {/* TAMPILAN MOBILE: LIST DARI PENGGUNA BERUPA KARTU (block sm:hidden) */}
-                      <div className="space-y-3 block sm:hidden">
-                        {filteredUsers.map((u) => {
-                          const isMaster = u.id === 'admin_master';
-                          const isMe = u.id === currentUser?.id;
-                          return (
-                            <div
-                              key={u.id}
-                              className="p-4 rounded-2xl bg-slate-50/70 border border-slate-200/90 shadow-2xs space-y-3"
-                            >
-                              {/* Header Kartu Pengguna */}
-                              <div className="flex items-start justify-between gap-3">
-                                <div className="flex items-center gap-2.5 min-w-0">
-                                  <div className="w-10 h-10 rounded-xl bg-[#06305d] text-white flex items-center justify-center font-bold text-sm shrink-0">
-                                    {u.nama.charAt(0).toUpperCase()}
-                                  </div>
-                                  <div className="min-w-0">
-                                    <p className="font-bold text-slate-900 text-xs truncate">{u.nama}</p>
-                                    <p className="text-[11px] font-mono text-slate-500">@{u.username}</p>
-                                  </div>
-                                </div>
-                                <div className="shrink-0">{getRoleBadge(u.role)}</div>
-                              </div>
+                  {/* Sort */}
+                  <div className="shrink-0">
+                    <select
+                      value={userSort}
+                      onChange={(e) => setUserSort(e.target.value as any)}
+                      className="px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold text-slate-700 focus:outline-none focus:ring-2 focus:ring-[#06305d]/20 focus:border-[#06305d] transition cursor-pointer"
+                    >
+                      <option value="terbaru">Terbaru</option>
+                      <option value="terlama">Terlama</option>
+                      <option value="nama_asc">Nama (A-Z)</option>
+                      <option value="nama_desc">Nama (Z-A)</option>
+                      <option value="role">Role</option>
+                    </select>
+                  </div>
+                </div>
 
-                              {/* Rincian Wewenang Operasional */}
-                              <div className="p-2.5 bg-white rounded-xl border border-slate-200/60 text-[11px] text-slate-600 leading-relaxed">
-                                {u.role === 'superadmin'
-                                  ? 'Akses Penuh: Dashboard, Verifikasi, Scanner, Riwayat, dan RBAC'
-                                  : u.role === 'panitia'
-                                  ? 'Akses: Dashboard, Verifikasi Berkas Tiket, Scanner Presensi, Riwayat Scan'
-                                  : 'Akses: Fast Action Scanner QR Code di Pintu Masuk'}
-                              </div>
+                {/* Button Tambah Pengguna: Membuka Halaman Baru Form Data Pengguna */}
+                <button
+                  type="button"
+                  onClick={openAddUserPage}
+                  className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl font-bold text-xs bg-[#06305d] hover:bg-[#0a4583] text-white transition shadow-xs active:scale-95 cursor-pointer"
+                >
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+                  </svg>
+                  <span>Tambah Pengguna</span>
+                </button>
+              </div>
 
-                              {/* Footer Kartu Pengguna: ID & Tombol Aksi */}
-                              <div className="flex items-center justify-between pt-1 border-t border-slate-200/60 text-[11px]">
-                                <span className="font-mono text-slate-400 text-[10px]">ID: {u.id}</span>
-                                {isMaster ? (
-                                  <span className="px-2 py-0.5 rounded-md bg-slate-200/80 text-slate-600 text-[10px] font-bold">
-                                    Akun Master
-                                  </span>
-                                ) : isMe ? (
-                                  <span className="px-2 py-0.5 rounded-md bg-sky-100 text-sky-700 text-[10px] font-bold">
-                                    Akun Anda
-                                  </span>
-                                ) : (
-                                  <button
-                                    onClick={() => handleDeleteUser(u.id, u.nama)}
-                                    className="px-2.5 py-1 rounded-lg bg-rose-50 hover:bg-rose-100 text-rose-600 font-bold transition active:scale-95"
-                                  >
-                                    Hapus
-                                  </button>
-                                )}
-                              </div>
-                            </div>
-                          );
-                        })}
-                      </div>
+              {/* LIST PENGGUNA TERDAFTAR: HANYA MENAMPILKAN NAMA DAN ROLE */}
+              <div className="bg-white rounded-3xl p-5 sm:p-6 border border-slate-200 shadow-xs space-y-4">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <h3 className="text-sm font-black text-slate-900">List Pengguna Terdaftar</h3>
+                    <p className="text-xs text-slate-500 mt-0.5">
+                      Menampilkan {filteredUsers.length} akun pengguna
+                      {userSearch && <span> untuk pencarian "{userSearch}"</span>}
+                    </p>
+                  </div>
 
-                      {/* TAMPILAN DESKTOP: TABEL PROPORSIONAL & RESPONSIF (hidden sm:block) */}
-                      <div className="hidden sm:block rounded-2xl border border-slate-200 overflow-hidden">
-                        <div className="overflow-x-auto">
-                          <table className="w-full text-left border-collapse text-xs">
-                            <thead>
-                              <tr className="bg-slate-50 border-b border-slate-200 text-[10px] font-bold uppercase tracking-wider text-slate-500">
-                                <th className="py-3 px-4">Pengguna</th>
-                                <th className="py-3 px-4">Username</th>
-                                <th className="py-3 px-4">Role</th>
-                                <th className="py-3 px-4">Wewenang Operasional</th>
-                                <th className="py-3 px-4 text-center">Aksi</th>
-                              </tr>
-                            </thead>
-                            <tbody className="divide-y divide-slate-100">
-                              {filteredUsers.map((u) => {
-                                const isMaster = u.id === 'admin_master';
-                                const isMe = u.id === currentUser?.id;
-                                return (
-                                  <tr key={u.id} className="hover:bg-slate-50/70 transition">
-                                    <td className="py-3 px-4">
-                                      <div className="flex items-center gap-2.5">
-                                        <div className="w-8 h-8 rounded-lg bg-[#06305d]/10 text-[#06305d] flex items-center justify-center font-bold text-xs shrink-0">
-                                          {u.nama.charAt(0).toUpperCase()}
-                                        </div>
-                                        <div>
-                                          <p className="font-bold text-slate-900">{u.nama}</p>
-                                          <p className="text-[10px] font-mono text-slate-400">{u.id}</p>
-                                        </div>
-                                      </div>
-                                    </td>
-                                    <td className="py-3 px-4 font-mono text-slate-700">@{u.username}</td>
-                                    <td className="py-3 px-4">{getRoleBadge(u.role)}</td>
-                                    <td className="py-3 px-4 text-slate-500 text-[11px]">
-                                      {u.role === 'superadmin'
-                                        ? 'Akses Penuh (Dashboard, Verifikasi, Scanner, Riwayat, RBAC)'
-                                        : u.role === 'panitia'
-                                        ? 'Dashboard, Verifikasi Berkas, Scanner Presensi, Riwayat Scan'
-                                        : 'Fast Action Scanner QR & Presensi'}
-                                    </td>
-                                    <td className="py-3 px-4 text-center">
-                                      {isMaster ? (
-                                        <span className="text-[10px] text-slate-400 italic">Sistem</span>
-                                      ) : isMe ? (
-                                        <span className="text-[10px] text-slate-400 italic">Akun Anda</span>
-                                      ) : (
-                                        <button
-                                          onClick={() => handleDeleteUser(u.id, u.nama)}
-                                          className="px-2.5 py-1 rounded-lg bg-rose-50 hover:bg-rose-100 text-rose-600 text-[11px] font-bold transition active:scale-95"
-                                        >
-                                          Hapus
-                                        </button>
-                                      )}
-                                    </td>
-                                  </tr>
-                                );
-                              })}
-                            </tbody>
-                          </table>
-                        </div>
-                      </div>
-                    </>
+                  {userSearch && (
+                    <button
+                      onClick={() => setUserSearch('')}
+                      className="text-xs font-bold text-sky-600 hover:text-sky-700 transition cursor-pointer"
+                    >
+                      Reset
+                    </button>
                   )}
                 </div>
+
+                {loadingUsers ? (
+                  <div className="py-12 text-center">
+                    <div className="w-7 h-7 border-3 border-[#06305d] border-t-transparent rounded-full animate-spin mx-auto mb-2" />
+                    <p className="text-xs text-slate-400">Memuat data pengguna...</p>
+                  </div>
+                ) : filteredUsers.length === 0 ? (
+                  <div className="py-12 text-center border-2 border-dashed border-slate-200 rounded-2xl p-6">
+                    <div className="w-12 h-12 rounded-2xl bg-slate-100 text-slate-400 flex items-center justify-center mx-auto mb-3">
+                      <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
+                      </svg>
+                    </div>
+                    <p className="text-xs font-bold text-slate-700">Tidak ada pengguna ditemukan</p>
+                    <p className="text-[11px] text-slate-400 mt-0.5">
+                      {userSearch ? `Tidak ada pengguna dengan nama/role "${userSearch}"` : 'Belum ada pengguna terdaftar.'}
+                    </p>
+                  </div>
+                ) : (
+                  /* FORMAT LIST: HANYA BERUPA NAMA DAN ROLE SAJA, KLIK UNTUK BUKA PROFIL */
+                  <div className="space-y-2.5">
+                    {filteredUsers.map((u) => (
+                      <div
+                        key={u.id}
+                        onClick={() => openUserProfile(u.id)}
+                        className="p-4 rounded-2xl bg-white hover:bg-slate-50 border border-slate-200/90 hover:border-slate-300 shadow-2xs hover:shadow-xs transition-all duration-150 active:scale-[0.99] cursor-pointer flex items-center justify-between gap-3 group"
+                      >
+                        {/* Format List: Hanya Menampilkan Nama */}
+                        <div className="min-w-0 flex-1">
+                          <p className="font-bold text-slate-900 text-xs sm:text-sm group-hover:text-[#06305d] transition truncate">
+                            {u.nama}
+                          </p>
+                        </div>
+
+                        {/* Format List: Hanya Menampilkan Role & Indikator Klik */}
+                        <div className="flex items-center gap-2.5 shrink-0">
+                          {getRoleBadge(u.role)}
+                          <svg
+                            className="w-4 h-4 text-slate-400 group-hover:text-slate-600 transition group-hover:translate-x-0.5 duration-150"
+                            fill="none"
+                            stroke="currentColor"
+                            viewBox="0 0 24 24"
+                          >
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 5l7 7-7 7" />
+                          </svg>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
-            )}
-          </div>
-        )}
+            </div>
+          )}
+        </div>
       </div>
     );
   }
@@ -1141,12 +2188,12 @@ export function Pengaturan() {
           </div>
         </div>
 
-        {/* TOMBOL KELUAR (DENGAN VALIDASI KONFIRMASI) */}
+        {/* TOMBOL KELUAR */}
         <div className="pt-3">
           <button
             type="button"
             onClick={handleLogout}
-            className="w-full flex items-center justify-center gap-2 px-4 py-3.5 rounded-2xl bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 text-xs font-bold shadow-xs transition duration-150 active:scale-98"
+            className="w-full flex items-center justify-center gap-2 px-4 py-3.5 rounded-2xl bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 text-xs font-bold shadow-xs transition duration-150 active:scale-98 cursor-pointer"
           >
             <svg className="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
