@@ -11,7 +11,7 @@ import Layout from '../layouts/Layout.astro';
         </span>
         <h1 class="text-3xl font-extrabold text-slate-900 tracking-tight">Cek Status Kehadiran</h1>
         <p class="text-slate-500 text-sm mt-1 max-w-sm mx-auto">
-          Masukkan nomor WhatsApp terdaftar untuk melihat status dan mengunduh QR Code Anda.
+          Masukkan NIP dan 4 digit terakhir nomor WhatsApp Anda untuk melihat status dan mengunduh tiket QR Code.
         </p>
       </div>
 
@@ -27,26 +27,51 @@ import Layout from '../layouts/Layout.astro';
         </div>
         <div class="flex-1">
           <p class="text-xs font-bold text-white" id="toastTitle">Kolom Belum Terisi</p>
-          <p class="text-[11px] text-slate-300 mt-0.5 leading-snug" id="toastMessage">Harap masukkan nomor WhatsApp Anda terlebih dahulu.</p>
+          <p class="text-[11px] text-slate-300 mt-0.5 leading-snug" id="toastMessage">Harap masukkan NIP dan 4 digit terakhir nomor WhatsApp Anda.</p>
         </div>
       </div>
 
-      <!-- Search Card -->
+      <!-- Search Card: NIP dan 4 Digit Terakhir No WA -->
       <div class="bg-white rounded-2xl shadow-sm border border-slate-200/80 p-5 sm:p-6 mb-6">
-        <form id="formStatus" novalidate class="flex flex-col sm:flex-row gap-2.5">
-          <input
-            type="tel"
-            id="inputWA"
-            placeholder="Contoh: 081234567890"
-            required
-            class="flex-1 border border-slate-300 rounded-xl px-4 py-3 text-sm focus:ring-2 focus:ring-primary-500/20 focus:border-primary-600 outline-none transition"
-          />
+        <form id="formStatus" novalidate class="space-y-4">
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+            <div>
+              <label for="inputNIP" class="block text-xs font-bold text-slate-700 mb-1.5">
+                NIP (Nomor Induk Pegawai)
+              </label>
+              <input
+                type="text"
+                id="inputNIP"
+                placeholder="Masukkan NIP Anda"
+                required
+                class="w-full border border-slate-300 rounded-xl px-4 py-3 text-sm focus:ring-2 focus:ring-primary-500/20 focus:border-primary-600 outline-none transition uppercase"
+              />
+            </div>
+            <div>
+              <label for="inputWA4" class="block text-xs font-bold text-slate-700 mb-1.5">
+                4 Digit Terakhir No. WhatsApp
+              </label>
+              <input
+                type="text"
+                id="inputWA4"
+                maxlength="4"
+                inputmode="numeric"
+                placeholder="Contoh: 7890"
+                required
+                class="w-full border border-slate-300 rounded-xl px-4 py-3 text-sm focus:ring-2 focus:ring-primary-500/20 focus:border-primary-600 outline-none transition font-mono tracking-wider"
+              />
+            </div>
+          </div>
+
           <button
             type="submit"
             id="btnCari"
-            class="bg-primary-600 hover:bg-primary-700 active:scale-[0.99] text-white font-bold px-6 py-3 rounded-xl transition duration-150 text-sm shadow-md shadow-primary-600/20 whitespace-nowrap"
+            class="w-full bg-primary-600 hover:bg-primary-700 active:scale-[0.99] text-white font-bold px-6 py-3.5 rounded-xl transition duration-150 text-sm shadow-md shadow-primary-600/20 flex items-center justify-center gap-2"
           >
-            Periksa Status
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+            </svg>
+            <span>Periksa Status Kehadiran</span>
           </button>
         </form>
       </div>
@@ -140,9 +165,9 @@ import Layout from '../layouts/Layout.astro';
         <div class="w-16 h-16 bg-slate-200 text-slate-500 rounded-2xl flex items-center justify-center mx-auto text-2xl font-bold">
           🔍
         </div>
-        <h2 class="text-lg font-bold text-slate-800">Nomor Tidak Ditemukan</h2>
+        <h2 class="text-lg font-bold text-slate-800">Data Tidak Ditemukan</h2>
         <p class="text-xs text-slate-500 max-w-xs mx-auto">
-          Nomor WhatsApp tersebut belum terdaftar di sistem. Pastikan Anda memasukkan nomor yang sesuai saat pengisian formulir.
+          Data dengan NIP dan 4 digit terakhir nomor WhatsApp tersebut tidak ditemukan. Pastikan data yang dimasukkan sesuai dengan formulir saat Anda mendaftar.
         </p>
         <div class="pt-2">
           <a href="/daftar" class="inline-block bg-primary-600 hover:bg-primary-700 text-white font-bold px-5 py-2.5 rounded-xl text-xs transition">
@@ -158,7 +183,8 @@ import Layout from '../layouts/Layout.astro';
       const API_URL = import.meta.env.PUBLIC_API_URL || 'http://localhost:8787';
 
       const form = document.getElementById('formStatus') as HTMLFormElement | null;
-      const inputWA = document.getElementById('inputWA') as HTMLInputElement | null;
+      const inputNIP = document.getElementById('inputNIP') as HTMLInputElement | null;
+      const inputWA4 = document.getElementById('inputWA4') as HTMLInputElement | null;
       const loading = document.getElementById('loading');
       const toast = document.getElementById('toastAlert');
       const toastTitle = document.getElementById('toastTitle');
@@ -179,10 +205,10 @@ import Layout from '../layouts/Layout.astro';
       const alasanTolak = document.getElementById('alasanTolak');
       const downloadQR = document.getElementById('downloadQR');
 
-      if (!form || !inputWA || !loading) return;
+      if (!form || !inputNIP || !inputWA4 || !loading) return;
 
       let toastTimer: ReturnType<typeof setTimeout> | null = null;
-      function showToast(message = 'Harap masukkan nomor WhatsApp Anda terlebih dahulu.', title = 'Kolom Belum Terisi') {
+      function showToast(message = 'Harap lengkapi data periksa.', title = 'Kolom Belum Terisi', targetInput?: HTMLInputElement | null) {
         if (!toast) return;
         if (toastTitle) toastTitle.textContent = title;
         if (toastMessage) toastMessage.textContent = message;
@@ -192,9 +218,10 @@ import Layout from '../layouts/Layout.astro';
         toast.classList.add('opacity-100', 'translate-y-0');
 
         // Highlight input
-        if (inputWA) {
-          inputWA.classList.add('border-amber-500', 'ring-2', 'ring-amber-500/30');
-          inputWA.focus();
+        const el = targetInput || inputNIP;
+        if (el) {
+          el.classList.add('border-amber-500', 'ring-2', 'ring-amber-500/30');
+          el.focus();
         }
 
         // Hapus timer sebelumnya jika tombol diklik berulang kali
@@ -204,9 +231,8 @@ import Layout from '../layouts/Layout.astro';
         toastTimer = setTimeout(() => {
           toast.classList.remove('opacity-100', 'translate-y-0');
           toast.classList.add('opacity-0', 'pointer-events-none', '-translate-y-4');
-          if (inputWA) {
-            inputWA.classList.remove('border-amber-500', 'ring-2', 'ring-amber-500/30');
-          }
+          inputNIP?.classList.remove('border-amber-500', 'ring-2', 'ring-amber-500/30');
+          inputWA4?.classList.remove('border-amber-500', 'ring-2', 'ring-amber-500/30');
         }, 3000);
       }
 
@@ -216,13 +242,20 @@ import Layout from '../layouts/Layout.astro';
         );
       }
 
-      async function checkStatus(waNumber: string) {
-        if (!waNumber) return;
+      async function checkStatus(nipParam: string, wa4Param: string, waFullParam = '') {
+        if (!nipParam && !wa4Param && !waFullParam) return;
         hideAll();
         loading?.classList.remove('hidden');
 
         try {
-          const res = await fetch(`${API_URL}/api/peserta/status?wa=${encodeURIComponent(waNumber)}`);
+          let url = `${API_URL}/api/peserta/status`;
+          if (nipParam && wa4Param) {
+            url += `?nip=${encodeURIComponent(nipParam)}&wa4=${encodeURIComponent(wa4Param)}`;
+          } else if (waFullParam) {
+            url += `?wa=${encodeURIComponent(waFullParam)}`;
+          }
+
+          const res = await fetch(url);
           loading?.classList.add('hidden');
 
           if (res.status === 404) {
@@ -231,7 +264,10 @@ import Layout from '../layouts/Layout.astro';
           }
 
           if (!res.ok) {
-            throw new Error('Gagal memeriksa status');
+            const errData = await res.json().catch(() => ({}));
+            showToast(errData.error || 'Gagal memeriksa status kehadiran', 'Pemeriksaan Gagal');
+            resultNotFound?.classList.remove('hidden');
+            return;
           }
 
           const data = await res.json();
@@ -244,7 +280,9 @@ import Layout from '../layouts/Layout.astro';
             case 'dikonfirmasi':
               if (pesertaNama) pesertaNama.textContent = data.nama;
               if (pesertaInstansi) pesertaInstansi.textContent = data.instansi ? `Asal: ${data.instansi}` : '';
-              if (qrImage) qrImage.src = `${API_URL}/api/peserta/qr/${data.qr_token}`;
+              if (qrImage) {
+                qrImage.src = `${API_URL}/api/peserta/qr/${data.qr_token}`;
+              }
               if (qrTokenDisplay) qrTokenDisplay.textContent = `Token: ${data.qr_token}`;
               resultDikonfirmasi?.classList.remove('hidden');
               break;
@@ -267,28 +305,46 @@ import Layout from '../layouts/Layout.astro';
 
       form.addEventListener('submit', (e) => {
         e.preventDefault();
-        const val = inputWA.value.trim();
-        if (!val) {
-          showToast('Harap masukkan nomor WhatsApp yang terdaftar untuk memeriksa status.', 'Nomor WhatsApp Wajib Diisi');
+        const nipVal = inputNIP.value.trim();
+        const wa4Val = inputWA4.value.trim().replace(/\D/g, '');
+
+        if (!nipVal) {
+          showToast('Harap masukkan NIP Anda terlebih dahulu.', 'NIP Wajib Diisi', inputNIP);
+          return;
+        }
+
+        if (!wa4Val || wa4Val.length !== 4) {
+          showToast('Harap masukkan 4 digit terakhir nomor WhatsApp Anda.', '4 Digit WA Harus 4 Angka', inputWA4);
           return;
         }
 
         // Update URL tanpa reload
         const newUrl = new URL(window.location.href);
-        newUrl.searchParams.set('wa', val);
+        newUrl.searchParams.set('nip', nipVal);
+        newUrl.searchParams.set('wa4', wa4Val);
+        newUrl.searchParams.delete('wa');
         window.history.pushState({}, '', newUrl.toString());
-        checkStatus(val);
+        checkStatus(nipVal, wa4Val);
       });
 
       downloadQR?.addEventListener('click', async () => {
-        if (!qrImage) return;
+        if (!qrImage || !qrImage.src) return;
         try {
           const response = await fetch(qrImage.src);
+          if (!response.ok) {
+            const errData = await response.json().catch(() => ({}));
+            showToast(errData.error || 'Gagal mengunduh QR Code', 'Unduh Gagal');
+            return;
+          }
+          const contentType = response.headers.get('content-type') || '';
+          const isSvg = contentType.includes('svg');
+          const ext = isSvg ? 'svg' : 'png';
+
           const blob = await response.blob();
           const url = window.URL.createObjectURL(blob);
           const a = document.createElement('a');
           a.href = url;
-          a.download = `tiket-qr-${pesertaNama?.textContent?.replace(/\s+/g, '-').toLowerCase() || 'acara'}.png`;
+          a.download = `tiket-qr-${pesertaNama?.textContent?.replace(/\s+/g, '-').toLowerCase() || 'kehadiran'}.${ext}`;
           document.body.appendChild(a);
           a.click();
           a.remove();
@@ -298,12 +354,18 @@ import Layout from '../layouts/Layout.astro';
         }
       });
 
-      // Auto-search jika ada parameter ?wa=... di URL
+      // Auto-search jika ada parameter di URL
       const urlParams = new URLSearchParams(window.location.search);
+      const nipParam = urlParams.get('nip');
+      const wa4Param = urlParams.get('wa4');
       const waParam = urlParams.get('wa');
-      if (waParam) {
-        inputWA.value = waParam;
-        checkStatus(waParam);
+
+      if (nipParam && wa4Param) {
+        inputNIP.value = nipParam;
+        inputWA4.value = wa4Param;
+        checkStatus(nipParam, wa4Param);
+      } else if (waParam) {
+        checkStatus('', '', waParam);
       }
     }
 

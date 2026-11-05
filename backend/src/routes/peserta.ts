@@ -140,7 +140,8 @@ pesertaRoutes.post('/daftar', validatePendaftaran, async (c) => {
 });
 
 /**
- * GET /api/peserta/status?wa=08xxxxxxxx
+ * GET /api/peserta/status?nip=...&wa4=...
+ * Atau fallback: ?wa=08xxxxxxxx
  * Cek status pendaftaran dan akses QR Code mandiri
  */
 pesertaRoutes.get('/status', async (c) => {
@@ -149,39 +150,83 @@ pesertaRoutes.get('/status', async (c) => {
     return c.json({ error: 'Database D1 tidak terhubung' }, 500);
   }
 
-  const wa = c.req.query('wa');
-  if (!wa) {
-    return c.json({ error: 'Parameter nomor WhatsApp (?wa=...) diperlukan' }, 400);
+  const nip = c.req.query('nip')?.trim();
+  const wa4 = c.req.query('wa4')?.trim();
+  const wa = c.req.query('wa')?.trim();
+
+  if (!nip && !wa4 && !wa) {
+    return c.json({ error: 'Parameter NIP dan 4 digit terakhir WhatsApp (?nip=...&wa4=...) diperlukan' }, 400);
   }
 
-  const [var1, var2] = getPhoneVariants(wa);
-
   try {
-    const record = await db
-      .prepare(
-        `SELECT id, nama, email, no_whatsapp, instansi, status, qr_token, alasan_tolak, created_at, confirmed_at, attended_at
-         FROM pendaftar
-         WHERE no_whatsapp = ? OR no_whatsapp = ?
-         ORDER BY created_at DESC
-         LIMIT 1`
-      )
-      .bind(var1, var2)
-      .first<{
-        id: string;
-        nama: string;
-        email: string;
-        no_whatsapp: string;
-        instansi: string;
-        status: string;
-        qr_token: string | null;
-        alasan_tolak: string | null;
-        created_at: string;
-        confirmed_at: string | null;
-        attended_at: string | null;
-      }>();
+    let record: {
+      id: string;
+      nama: string;
+      email: string;
+      no_whatsapp: string;
+      instansi: string;
+      nip?: string;
+      status: string;
+      qr_token: string | null;
+      alasan_tolak: string | null;
+      created_at: string;
+      confirmed_at: string | null;
+      attended_at: string | null;
+    } | null = null;
+
+    if (nip && wa4) {
+      const nipParam = nip.toUpperCase();
+      const wa4Digits = wa4.replace(/\D/g, '');
+
+      if (wa4Digits.length !== 4) {
+        return c.json({ error: '4 digit nomor WhatsApp harus berupa 4 angka' }, 400);
+      }
+
+      record = await db
+        .prepare(
+          `SELECT id, nama, email, no_whatsapp, instansi, nip, status, qr_token, alasan_tolak, created_at, confirmed_at, attended_at
+           FROM pendaftar
+           WHERE (
+             UPPER(COALESCE(nip, '')) = ?
+             OR UPPER(instansi) LIKE ?
+             OR UPPER(instansi) LIKE ?
+           )
+           AND (
+             substr(replace(replace(replace(no_whatsapp, ' ', ''), '-', ''), '+', ''), -4) = ?
+             OR no_whatsapp LIKE ?
+           )
+           ORDER BY created_at DESC
+           LIMIT 1`
+        )
+        .bind(
+          nipParam,
+          `%NIP: ${nipParam}%`,
+          `%${nipParam}%`,
+          wa4Digits,
+          `%${wa4Digits}`
+        )
+        .first();
+    } else if (wa) {
+      // Fallback kompatibilitas dengan nomor WA utuh
+      const [var1, var2] = getPhoneVariants(wa);
+      record = await db
+        .prepare(
+          `SELECT id, nama, email, no_whatsapp, instansi, nip, status, qr_token, alasan_tolak, created_at, confirmed_at, attended_at
+           FROM pendaftar
+           WHERE no_whatsapp = ? OR no_whatsapp = ?
+           ORDER BY created_at DESC
+           LIMIT 1`
+        )
+        .bind(var1, var2)
+        .first();
+    } else if (nip && !wa4) {
+      return c.json({ error: 'Harap masukkan juga 4 digit terakhir nomor WhatsApp terdaftar' }, 400);
+    } else if (!nip && wa4) {
+      return c.json({ error: 'Harap masukkan NIP terdaftar Anda' }, 400);
+    }
 
     if (!record) {
-      return c.json({ error: 'Nomor WhatsApp tidak terdaftar' }, 404);
+      return c.json({ error: 'Data pendaftar dengan NIP dan 4 digit terakhir nomor WhatsApp tersebut tidak ditemukan' }, 404);
     }
 
     return c.json({
@@ -190,6 +235,7 @@ pesertaRoutes.get('/status', async (c) => {
       email: record.email,
       no_whatsapp: record.no_whatsapp,
       instansi: record.instansi,
+      nip: record.nip,
       status: record.status,
       qr_token: record.qr_token,
       alasan_tolak: record.alasan_tolak,
@@ -205,7 +251,7 @@ pesertaRoutes.get('/status', async (c) => {
 
 /**
  * GET /api/peserta/qr/:token
- * Menghasilkan & mengirimkan file gambar QR code kehadiran peserta (PNG)
+ * Menghasilkan & mengirimkan file gambar QR code kehadiran peserta (PNG / SVG murni)
  */
 pesertaRoutes.get('/qr/:token', async (c) => {
   const db = c.env.DB;
@@ -228,7 +274,21 @@ pesertaRoutes.get('/qr/:token', async (c) => {
       return c.json({ error: 'QR Code tidak ditemukan atau belum disetujui panitia' }, 404);
     }
 
-    // Generate gambar PNG
+    const format = c.req.query('format') || 'png';
+
+    if (format === 'svg') {
+      const svgString = await QRGeneratorService.generateSVG(token);
+      return new Response(svgString, {
+        status: 200,
+        headers: {
+          'Content-Type': 'image/svg+xml; charset=utf-8',
+          'Cache-Control': 'public, max-age=86400',
+          'Content-Disposition': `inline; filename="qr-${token}.svg"`,
+        },
+      });
+    }
+
+    // Generate gambar PNG murni (pure JS, tanpa canvas)
     const pngBytes = await QRGeneratorService.generatePNG(token);
 
     return new Response(pngBytes, {
@@ -241,7 +301,20 @@ pesertaRoutes.get('/qr/:token', async (c) => {
     });
   } catch (err: any) {
     console.error('Error generate QR:', err);
-    return c.json({ error: 'Gagal memproses QR code: ' + err.message }, 500);
+    // Fallback otomatis ke SVG jika terjadi kendala
+    try {
+      const svgFallback = await QRGeneratorService.generateSVG(token);
+      return new Response(svgFallback, {
+        status: 200,
+        headers: {
+          'Content-Type': 'image/svg+xml; charset=utf-8',
+          'Cache-Control': 'public, max-age=86400',
+          'Content-Disposition': `inline; filename="qr-${token}.svg"`,
+        },
+      });
+    } catch {
+      return c.json({ error: 'Gagal memproses QR code: ' + err.message }, 500);
+    }
   }
 });
 

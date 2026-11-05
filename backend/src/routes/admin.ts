@@ -1,6 +1,6 @@
 import { Hono } from 'hono';
 import { nanoid } from 'nanoid';
-import { authMiddleware, createAdminToken } from '../middlewares/auth';
+import { authMiddleware, createAdminToken, AdminJwtPayload } from '../middlewares/auth';
 import { WALinkService } from '../services/wa-link';
 import { verifyPassword, hashPassword } from '../services/auth-helper';
 import { StorageService } from '../services/storage';
@@ -11,7 +11,12 @@ type Bindings = {
   JWT_SECRET: string;
 };
 
-export const adminRoutes = new Hono<{ Bindings: Bindings }>();
+type Variables = {
+  user: AdminJwtPayload;
+  jwtPayload: AdminJwtPayload;
+};
+
+export const adminRoutes = new Hono<{ Bindings: Bindings; Variables: Variables }>();
 
 /**
  * POST /api/admin/login
@@ -120,7 +125,7 @@ adminRoutes.get('/pendaftar', async (c) => {
   const search = c.req.query('search')?.trim();
 
   try {
-    let sql = `SELECT id, nama, email, no_whatsapp, instansi, screenshot_url, qr_code_url, qr_token, status, alasan_tolak, wa_terkirim, created_at, confirmed_at, attended_at FROM pendaftar WHERE 1=1`;
+    let sql = `SELECT id, nama, email, no_whatsapp, instansi, jenis_kelamin, nip, domisili, alasan, screenshot_url, qr_code_url, qr_token, status, alasan_tolak, wa_terkirim, created_at, confirmed_at, attended_at FROM pendaftar WHERE 1=1`;
     const params: any[] = [];
 
     if (status && status !== 'semua') {
@@ -129,14 +134,16 @@ adminRoutes.get('/pendaftar', async (c) => {
     }
 
     if (search) {
-      sql += ` AND (nama LIKE ? OR no_whatsapp LIKE ? OR instansi LIKE ?)`;
-      params.push(`%${search}%`, `%${search}%`, `%${search}%`);
+      sql += ` AND (nama LIKE ? OR no_whatsapp LIKE ? OR instansi LIKE ? OR COALESCE(nip, '') LIKE ?)`;
+      params.push(`%${search}%`, `%${search}%`, `%${search}%`, `%${search}%`);
     }
 
     if (status === 'hadir') {
       sql += ` ORDER BY attended_at DESC, created_at DESC`;
+    } else if (status === 'dikonfirmasi') {
+      sql += ` ORDER BY COALESCE(confirmed_at, created_at) DESC`;
     } else {
-      sql += ` ORDER BY created_at DESC`;
+      sql += ` ORDER BY COALESCE(attended_at, confirmed_at, created_at) DESC`;
     }
 
     const stmt = db.prepare(sql);

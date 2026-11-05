@@ -105,12 +105,6 @@ export function Login() {
           >
             {loading ? 'Memeriksa...' : 'Masuk ke Dashboard'}
           </button>
-
-          <div className="text-center pt-2">
-            <p className="text-[11px] text-slate-400">
-              Default Dev: <span className="font-mono text-slate-600">admin</span> / <span className="font-mono text-slate-600">admin123</span>
-            </p>
-          </div>
         </form>
       </div>
     </div>

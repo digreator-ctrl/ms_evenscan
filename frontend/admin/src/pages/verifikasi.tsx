@@ -8,6 +8,10 @@ interface Pendaftar {
   email: string;
   no_whatsapp: string;
   instansi: string;
+  nip?: string;
+  jenis_kelamin?: string;
+  domisili?: string;
+  alasan?: string;
   screenshot_url: string;
   qr_code_url: string;
   qr_token: string;
@@ -17,6 +21,15 @@ interface Pendaftar {
   created_at: string;
   confirmed_at?: string;
   attended_at?: string;
+}
+
+function getNIP(p: Pendaftar): string {
+  if (p.nip && p.nip.trim()) return p.nip.trim();
+  if (p.instansi) {
+    const match = p.instansi.match(/NIP:\s*([A-Za-z0-9\-\/]+)/i);
+    if (match) return match[1].trim();
+  }
+  return '-';
 }
 
 export function Verifikasi() {
@@ -148,19 +161,22 @@ export function Verifikasi() {
   };
 
   const handleKirimWA = async (p: Pendaftar) => {
-    const SITE_URL = import.meta.env.VITE_SITE_URL || 'http://localhost:3001';
-    const statusUrl = `${SITE_URL.replace(/\/$/, '')}/status?wa=${encodeURIComponent(p.no_whatsapp)}`;
-    
-    const pesan = `Assalamu'alaikum Kak *${p.nama}*,
+    const pesan = `بسم الله
+السلام عليكم ورحمة الله وبركاته
+ Selamat Datang Bapak/Ibu/Mas/Mbak ${p.nama},
 
 Pendaftaran Anda untuk acara *Muslim Scene Event* telah *BERHASIL DIKONFIRMASI* ✅
 
 Silakan akses & unduh QR code kehadiran Anda melalui tautan berikut:
-🔗 ${statusUrl}
+🔗 https://ms-evenscan-admin.pages.dev/status
 
-Mohon simpan dan tunjukkan tiket QR tersebut kepada panitia di meja registrasi pada hari acara.
+(NIP + 4 digit terakhir no WA)
 
-Jazakumullah khairan katsiran 🤲
+_*Masukkan kode akses pada halaman tersebut untuk melihat & download QR code*_
+
+Mohon simpan dan tunjukkan QR code ini kepada panitia di meja registrasi pada hari acara.
+
+جزاكم الله خيرا
 _Panitia Muslim Scene Event_`;
 
     let waNumber = p.no_whatsapp.replace(/\D/g, '');
@@ -207,11 +223,14 @@ _Panitia Muslim Scene Event_`;
 
   const filtered = pendaftar.filter((p) => {
     const matchFilter = filter === 'semua' || p.status === filter;
+    const nipStr = getNIP(p).toLowerCase();
+    const q = search.toLowerCase();
     const matchSearch =
       search === '' ||
-      p.nama.toLowerCase().includes(search.toLowerCase()) ||
-      p.no_whatsapp.includes(search) ||
-      (p.instansi && p.instansi.toLowerCase().includes(search.toLowerCase()));
+      p.nama.toLowerCase().includes(q) ||
+      p.no_whatsapp.includes(q) ||
+      (p.instansi && p.instansi.toLowerCase().includes(q)) ||
+      nipStr.includes(q);
     return matchFilter && matchSearch;
   });
 
@@ -263,7 +282,7 @@ _Panitia Muslim Scene Event_`;
         <div className="relative min-w-[260px]">
           <input
             type="text"
-            placeholder="Cari nama, WA, instansi..."
+            placeholder="Cari nama, NIP, WA, instansi..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             className="w-full bg-white border border-slate-200 rounded-xl px-4 py-2 text-xs focus:ring-2 focus:ring-[#06305d]/20 focus:border-[#06305d] outline-none transition"
@@ -271,7 +290,7 @@ _Panitia Muslim Scene Event_`;
         </div>
       </div>
 
-      {/* Table Container */}
+      {/* Main List Container */}
       <div className="bg-white rounded-2xl border border-slate-200 shadow-xs overflow-hidden">
         {loading ? (
           <div className="text-center py-16 text-slate-400 space-y-2">
@@ -285,120 +304,157 @@ _Panitia Muslim Scene Event_`;
             <p className="text-xs">Coba sesuaikan kata kunci pencarian atau filter status.</p>
           </div>
         ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full text-left border-collapse">
-              <thead>
-                <tr className="bg-slate-50/80 border-b border-slate-200 text-[11px] font-bold text-slate-500 uppercase tracking-wider">
-                  <th className="px-5 py-3.5">Peserta</th>
-                  <th className="px-5 py-3.5">Kontak WA</th>
-                  <th className="px-5 py-3.5">Instansi</th>
-                  <th className="px-5 py-3.5">Status</th>
-                  <th className="px-5 py-3.5">Notifikasi WA</th>
-                  <th className="px-5 py-3.5 text-right">Aksi</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-100 text-xs">
-                {filtered.map((p) => (
-                  <tr key={p.id} className="hover:bg-slate-50/70 transition">
-                    <td className="px-5 py-3.5 font-semibold text-slate-900">
-                      <div>{p.nama}</div>
-                      {p.email && <div className="text-[11px] font-normal text-slate-400">{p.email}</div>}
-                    </td>
-                    <td className="px-5 py-3.5 text-slate-600 font-mono">{p.no_whatsapp}</td>
-                    <td className="px-5 py-3.5 text-slate-600">{p.instansi || '-'}</td>
-                    <td className="px-5 py-3.5">
-                      <span className={`inline-block px-2.5 py-0.5 rounded-full text-[11px] font-bold capitalize ${statusBadge(p.status)}`}>
-                        {p.status}
-                      </span>
-                    </td>
-                    <td className="px-5 py-3.5">
-                      {p.status === 'dikonfirmasi' ? (
-                        p.wa_terkirim ? (
-                          <span className="text-emerald-600 font-semibold text-[11px] flex items-center gap-1">
-                            ✓ Terkirim
-                          </span>
+          <>
+            {/* 1. TAMPILAN MOBILE: Compact List Card (Hanya Nama, NIP, Status) */}
+            <div className="md:hidden divide-y divide-slate-100">
+              {filtered.map((p) => (
+                <div
+                  key={p.id}
+                  onClick={() => setSelectedPendaftar(p)}
+                  className="p-3.5 sm:p-4 flex items-center justify-between gap-3 hover:bg-slate-50 active:bg-slate-100 transition cursor-pointer group"
+                >
+                  <div className="min-w-0 flex-1">
+                    <h3 className="font-bold text-slate-900 text-sm truncate group-hover:text-[#06305d] transition">
+                      {p.nama}
+                    </h3>
+                    <p className="text-xs text-slate-500 font-mono mt-0.5 flex items-center gap-1.5">
+                      <span className="text-[11px] font-semibold text-slate-400">NIP:</span>
+                      <span className="text-slate-700 font-bold tracking-wide">{getNIP(p)}</span>
+                    </p>
+                  </div>
+
+                  <div className="flex items-center gap-2 shrink-0">
+                    <span className={`inline-block px-2.5 py-1 rounded-full text-[10px] font-bold capitalize ${statusBadge(p.status)}`}>
+                      {p.status}
+                    </span>
+                    <svg className="w-4 h-4 text-slate-400 group-hover:text-[#06305d] group-hover:translate-x-0.5 transition shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 5l7 7-7 7" />
+                    </svg>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            {/* 2. TAMPILAN DESKTOP: Tabel Lengkap */}
+            <div className="hidden md:block overflow-x-auto">
+              <table className="w-full text-left border-collapse">
+                <thead>
+                  <tr className="bg-slate-50/80 border-b border-slate-200 text-[11px] font-bold text-slate-500 uppercase tracking-wider">
+                    <th className="px-5 py-3.5">Peserta</th>
+                    <th className="px-5 py-3.5">NIP</th>
+                    <th className="px-5 py-3.5">Kontak WA</th>
+                    <th className="px-5 py-3.5">Instansi</th>
+                    <th className="px-5 py-3.5">Status</th>
+                    <th className="px-5 py-3.5">Notifikasi WA</th>
+                    <th className="px-5 py-3.5 text-right">Aksi</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100 text-xs">
+                  {filtered.map((p) => (
+                    <tr key={p.id} className="hover:bg-slate-50/70 transition">
+                      <td className="px-5 py-3.5 font-semibold text-slate-900">
+                        <div>{p.nama}</div>
+                        {p.email && <div className="text-[11px] font-normal text-slate-400">{p.email}</div>}
+                      </td>
+                      <td className="px-5 py-3.5 font-mono font-bold text-slate-700">
+                        {getNIP(p)}
+                      </td>
+                      <td className="px-5 py-3.5 text-slate-600 font-mono">{p.no_whatsapp}</td>
+                      <td className="px-5 py-3.5 text-slate-600">{p.instansi || '-'}</td>
+                      <td className="px-5 py-3.5">
+                        <span className={`inline-block px-2.5 py-0.5 rounded-full text-[11px] font-bold capitalize ${statusBadge(p.status)}`}>
+                          {p.status}
+                        </span>
+                      </td>
+                      <td className="px-5 py-3.5">
+                        {p.status === 'dikonfirmasi' ? (
+                          p.wa_terkirim ? (
+                            <span className="text-emerald-600 font-semibold text-[11px] flex items-center gap-1">
+                              ✓ Terkirim
+                            </span>
+                          ) : (
+                            <span className="text-amber-600 font-semibold text-[11px] flex items-center gap-1">
+                              ⏳ Belum
+                            </span>
+                          )
                         ) : (
-                          <span className="text-amber-600 font-semibold text-[11px] flex items-center gap-1">
-                            ⏳ Belum
-                          </span>
-                        )
-                      ) : (
-                        <span className="text-slate-300">-</span>
-                      )}
-                    </td>
-                    <td className="px-5 py-3.5 text-right">
-                      <div className="flex items-center justify-end gap-1.5">
-                        <button
-                          type="button"
-                          onClick={() => setSelectedPendaftar(p)}
-                          className="px-2.5 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg text-[11px] font-semibold transition cursor-pointer"
-                        >
-                          👁️ Detail
-                        </button>
-
-                        {p.status === 'menunggu' && (
-                          <>
-                            <button
-                              type="button"
-                              disabled={actionLoading === p.id}
-                              onClick={() => handleKonfirmasi(p.id)}
-                              className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 active:scale-95 text-white rounded-lg text-[11px] font-bold transition shadow-xs disabled:opacity-50 cursor-pointer"
-                            >
-                              {actionLoading === p.id ? '...' : '✓ ACC'}
-                            </button>
-                            <button
-                              type="button"
-                              disabled={actionLoading === p.id}
-                              onClick={() => handleTolak(p.id)}
-                              className="px-2.5 py-1.5 bg-rose-50 hover:bg-rose-100 text-rose-700 rounded-lg text-[11px] font-semibold transition disabled:opacity-50 cursor-pointer"
-                            >
-                              ✕ Tolak
-                            </button>
-                          </>
+                          <span className="text-slate-300">-</span>
                         )}
-
-                        {p.status === 'dikonfirmasi' && (
+                      </td>
+                      <td className="px-5 py-3.5 text-right">
+                        <div className="flex items-center justify-end gap-1.5">
                           <button
                             type="button"
-                            onClick={() => handleKirimWA(p)}
-                            className={`px-3 py-1.5 rounded-lg text-[11px] font-bold transition flex items-center gap-1 shadow-xs cursor-pointer ${
-                              p.wa_terkirim
-                                ? 'bg-slate-100 hover:bg-slate-200 text-slate-700'
-                                : 'bg-emerald-600 hover:bg-emerald-700 text-white'
-                            }`}
+                            onClick={() => setSelectedPendaftar(p)}
+                            className="px-2.5 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg text-[11px] font-semibold transition cursor-pointer"
                           >
-                            <span>📱</span>
-                            <span>{p.wa_terkirim ? 'Kirim Ulang' : 'Kirim WA'}</span>
+                            👁️ Detail
                           </button>
-                        )}
 
-                        <button
-                          type="button"
-                          title="Hapus Data"
-                          disabled={actionLoading === p.id}
-                          onClick={() => handleHapus(p.id, p.nama)}
-                          className="px-2 py-1.5 bg-rose-50 hover:bg-rose-100 text-rose-600 rounded-lg text-[11px] font-semibold transition disabled:opacity-50 cursor-pointer"
-                        >
-                          🗑️
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+                          {p.status === 'menunggu' && (
+                            <>
+                              <button
+                                type="button"
+                                disabled={actionLoading === p.id}
+                                onClick={() => handleKonfirmasi(p.id)}
+                                className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 active:scale-95 text-white rounded-lg text-[11px] font-bold transition shadow-xs disabled:opacity-50 cursor-pointer"
+                              >
+                                {actionLoading === p.id ? '...' : '✓ ACC'}
+                              </button>
+                              <button
+                                type="button"
+                                disabled={actionLoading === p.id}
+                                onClick={() => handleTolak(p.id)}
+                                className="px-2.5 py-1.5 bg-rose-50 hover:bg-rose-100 text-rose-700 rounded-lg text-[11px] font-semibold transition disabled:opacity-50 cursor-pointer"
+                              >
+                                ✕ Tolak
+                              </button>
+                            </>
+                          )}
+
+                          {p.status === 'dikonfirmasi' && (
+                            <button
+                              type="button"
+                              onClick={() => handleKirimWA(p)}
+                              className={`px-3 py-1.5 rounded-lg text-[11px] font-bold transition flex items-center gap-1 shadow-xs cursor-pointer ${
+                                p.wa_terkirim
+                                  ? 'bg-slate-100 hover:bg-slate-200 text-slate-700'
+                                  : 'bg-emerald-600 hover:bg-emerald-700 text-white'
+                              }`}
+                            >
+                              <span>📱</span>
+                              <span>{p.wa_terkirim ? 'Kirim Ulang' : 'Kirim WA'}</span>
+                            </button>
+                          )}
+
+                          <button
+                            type="button"
+                            title="Hapus Data"
+                            disabled={actionLoading === p.id}
+                            onClick={() => handleHapus(p.id, p.nama)}
+                            className="px-2 py-1.5 bg-rose-50 hover:bg-rose-100 text-rose-600 rounded-lg text-[11px] font-semibold transition disabled:opacity-50 cursor-pointer"
+                          >
+                            🗑️
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </>
         )}
       </div>
 
       {/* Modal Detail & Screenshot Viewer */}
       {selectedPendaftar && (
-        <div className="fixed inset-0 z-50 bg-slate-900/50 backdrop-blur-xs flex items-center justify-center p-4">
-          <div className="bg-white rounded-3xl shadow-2xl max-w-lg w-full overflow-hidden border border-slate-200">
-            <div className="p-5 border-b border-slate-100 flex items-center justify-between">
+        <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-3 sm:p-4">
+          <div className="bg-white rounded-2xl sm:rounded-3xl shadow-2xl max-w-lg w-full overflow-hidden border border-slate-200 flex flex-col max-h-[90vh]">
+            <div className="p-4 sm:p-5 border-b border-slate-100 flex items-center justify-between shrink-0">
               <div>
-                <h2 className="text-base font-bold text-slate-900">Detail Bukti Pendaftar</h2>
-                <p className="text-xs text-slate-400">ID: {selectedPendaftar.id}</p>
+                <h2 className="text-base font-bold text-slate-900">Detail Peserta & Berkas</h2>
+                <p className="text-xs text-slate-400 font-mono">ID: {selectedPendaftar.id}</p>
               </div>
               <button
                 type="button"
@@ -409,7 +465,7 @@ _Panitia Muslim Scene Event_`;
               </button>
             </div>
 
-            <div className="p-6 space-y-4 max-h-[75vh] overflow-y-auto">
+            <div className="p-4 sm:p-6 space-y-4 overflow-y-auto flex-1">
               {/* Peserta Info */}
               <div className="grid grid-cols-2 gap-3 bg-slate-50 p-4 rounded-2xl text-xs">
                 <div>
@@ -417,31 +473,75 @@ _Panitia Muslim Scene Event_`;
                   <p className="font-bold text-slate-800 text-sm mt-0.5">{selectedPendaftar.nama}</p>
                 </div>
                 <div>
+                  <span className="text-slate-400 font-medium">NIP:</span>
+                  <p className="font-bold text-[#06305d] font-mono text-sm mt-0.5">{getNIP(selectedPendaftar)}</p>
+                </div>
+                <div>
                   <span className="text-slate-400 font-medium">WhatsApp:</span>
                   <p className="font-bold text-slate-800 font-mono mt-0.5">{selectedPendaftar.no_whatsapp}</p>
                 </div>
                 <div>
-                  <span className="text-slate-400 font-medium">Instansi:</span>
-                  <p className="font-semibold text-slate-700 mt-0.5">{selectedPendaftar.instansi || '-'}</p>
-                </div>
-                <div>
                   <span className="text-slate-400 font-medium">Status:</span>
                   <p className="mt-0.5">
-                    <span className={`inline-block px-2 py-0.5 rounded-full text-[10px] font-bold uppercase ${statusBadge(selectedPendaftar.status)}`}>
+                    <span className={`inline-block px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase ${statusBadge(selectedPendaftar.status)}`}>
                       {selectedPendaftar.status}
                     </span>
                   </p>
                 </div>
+                {selectedPendaftar.email && (
+                  <div>
+                    <span className="text-slate-400 font-medium">Email:</span>
+                    <p className="font-semibold text-slate-700 mt-0.5">{selectedPendaftar.email}</p>
+                  </div>
+                )}
+                {selectedPendaftar.instansi && (
+                  <div className="col-span-2">
+                    <span className="text-slate-400 font-medium">Instansi / Wilayah:</span>
+                    <p className="font-semibold text-slate-700 mt-0.5">{selectedPendaftar.instansi}</p>
+                  </div>
+                )}
+                {selectedPendaftar.alasan && (
+                  <div className="col-span-2">
+                    <span className="text-slate-400 font-medium">Alasan / Motivasi:</span>
+                    <p className="text-slate-600 mt-0.5 italic">"{selectedPendaftar.alasan}"</p>
+                  </div>
+                )}
+                {selectedPendaftar.status === 'ditolak' && selectedPendaftar.alasan_tolak && (
+                  <div className="col-span-2 bg-rose-50 p-2.5 rounded-xl border border-rose-200">
+                    <span className="text-rose-700 font-bold">Alasan Penolakan:</span>
+                    <p className="text-rose-800 mt-0.5">{selectedPendaftar.alasan_tolak}</p>
+                  </div>
+                )}
+                {selectedPendaftar.status === 'dikonfirmasi' && (
+                  <div className="col-span-2 flex items-center justify-between pt-1 border-t border-slate-200/60">
+                    <span className="text-slate-500 font-medium">Status Pengiriman WA:</span>
+                    {selectedPendaftar.wa_terkirim ? (
+                      <span className="text-emerald-600 font-bold">✓ Sudah Terkirim</span>
+                    ) : (
+                      <span className="text-amber-600 font-bold">⏳ Belum Terkirim</span>
+                    )}
+                  </div>
+                )}
               </div>
 
               {/* Bukti Screenshot */}
               <div>
-                <span className="text-xs font-bold text-slate-700 block mb-2">Foto / Bukti Screenshot:</span>
-                <div className="bg-slate-900 rounded-2xl overflow-hidden border border-slate-200 flex items-center justify-center p-2 min-h-[220px]">
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-xs font-bold text-slate-700">Foto / Bukti Screenshot Akun HSI:</span>
+                  <a
+                    href={`${API_URL}${selectedPendaftar.screenshot_url}`}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="text-[11px] text-[#06305d] hover:underline font-semibold"
+                  >
+                    Buka Gambar Penuh ↗
+                  </a>
+                </div>
+                <div className="bg-slate-900 rounded-2xl overflow-hidden border border-slate-200 flex items-center justify-center p-2 min-h-[200px]">
                   <img
                     src={`${API_URL}${selectedPendaftar.screenshot_url}`}
                     alt="Bukti Screenshot"
-                    className="max-h-80 max-w-full rounded-xl object-contain"
+                    className="max-h-72 max-w-full rounded-xl object-contain"
                     onError={(e) => {
                       (e.target as HTMLElement).style.display = 'none';
                       const parent = (e.target as HTMLElement).parentElement;
@@ -455,17 +555,17 @@ _Panitia Muslim Scene Event_`;
             </div>
 
             {/* Modal Actions */}
-            <div className="p-4 bg-slate-50 border-t border-slate-100 flex items-center justify-between gap-2">
+            <div className="p-4 bg-slate-50 border-t border-slate-100 flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-2.5 shrink-0">
               <button
                 type="button"
                 disabled={actionLoading === selectedPendaftar.id}
                 onClick={() => handleHapus(selectedPendaftar.id, selectedPendaftar.nama)}
-                className="px-3.5 py-2 bg-rose-50 hover:bg-rose-100 text-rose-600 rounded-xl text-xs font-bold transition disabled:opacity-50 cursor-pointer flex items-center gap-1.5"
+                className="px-3.5 py-2 bg-rose-50 hover:bg-rose-100 text-rose-600 rounded-xl text-xs font-bold transition disabled:opacity-50 cursor-pointer flex items-center justify-center gap-1.5"
               >
-                <span>🗑️</span> Hapus
+                <span>🗑️</span> Hapus Data
               </button>
 
-              <div className="flex items-center gap-2">
+              <div className="flex flex-wrap items-center justify-end gap-2">
                 <button
                   type="button"
                   onClick={() => setSelectedPendaftar(null)}
@@ -478,17 +578,19 @@ _Panitia Muslim Scene Event_`;
                   <>
                     <button
                       type="button"
+                      disabled={actionLoading === selectedPendaftar.id}
                       onClick={() => handleTolak(selectedPendaftar.id)}
-                      className="px-4 py-2 bg-rose-50 text-rose-700 hover:bg-rose-100 rounded-xl text-xs font-bold cursor-pointer"
+                      className="px-4 py-2 bg-rose-100 text-rose-800 hover:bg-rose-200 rounded-xl text-xs font-bold cursor-pointer disabled:opacity-50"
                     >
-                      Tolak Berkas
+                      Tolak
                     </button>
                     <button
                       type="button"
+                      disabled={actionLoading === selectedPendaftar.id}
                       onClick={() => handleKonfirmasi(selectedPendaftar.id)}
-                      className="px-4 py-2 bg-emerald-600 text-white hover:bg-emerald-700 rounded-xl text-xs font-bold shadow-xs cursor-pointer"
+                      className="px-4 py-2 bg-emerald-600 text-white hover:bg-emerald-700 rounded-xl text-xs font-bold shadow-xs cursor-pointer disabled:opacity-50 flex items-center gap-1"
                     >
-                      Setujui & Buat QR Code
+                      <span>✓</span> Setujui (ACC)
                     </button>
                   </>
                 )}
@@ -497,9 +599,9 @@ _Panitia Muslim Scene Event_`;
                   <button
                     type="button"
                     onClick={() => handleKirimWA(selectedPendaftar)}
-                    className="px-4 py-2 bg-emerald-600 text-white hover:bg-emerald-700 rounded-xl text-xs font-bold shadow-xs flex items-center gap-1.5 cursor-pointer"
+                    className="px-4 py-2 bg-emerald-600 text-white hover:bg-emerald-700 rounded-xl text-xs font-bold shadow-xs flex items-center justify-center gap-1.5 cursor-pointer"
                   >
-                    <span>📱</span> Buka WhatsApp
+                    <span>📱</span> {selectedPendaftar.wa_terkirim ? 'Kirim Ulang WA' : 'Kirim WA'}
                   </button>
                 )}
               </div>

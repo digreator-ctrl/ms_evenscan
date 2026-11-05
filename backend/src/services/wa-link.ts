@@ -30,18 +30,22 @@ export class WALinkService {
     const cleanPhone = this.normalizePhoneNumber(phoneNumber);
     const cekStatusUrl = `${siteUrl.replace(/\/$/, '')}/status`;
 
-    const pesan = `Assalamu'alaikum Kak *${namaPeserta}*,
+    const pesan = `بسم الله
+السلام عليكم ورحمة الله وبركاته
+ Selamat Datang Bapak/Ibu/Mas/Mbak ${namaPeserta},
 
 Pendaftaran Anda untuk acara *${namaAcara}* telah *BERHASIL DIKONFIRMASI* ✅
 
 Silakan akses & unduh QR code kehadiran Anda melalui tautan berikut:
-🔗 ${cekStatusUrl}
+🔗 https://ms-evenscan-admin.pages.dev/status
 
-*(Masukkan nomor WhatsApp Anda: ${phoneNumber} pada halaman tersebut untuk melihat & download QR code)*
+(NIP + 4 digit terakhir no WA)
+
+_*Masukkan kode akses pada halaman tersebut untuk melihat & download QR code*_
 
 Mohon simpan dan tunjukkan QR code ini kepada panitia di meja registrasi pada hari acara.
 
-Jazakumullah khairan katsiran 🤲
+جزاكم الله خيرا
 _Panitia ${namaAcara}_`;
 
     return `https://wa.me/${cleanPhone}?text=${encodeURIComponent(pesan)}`;
