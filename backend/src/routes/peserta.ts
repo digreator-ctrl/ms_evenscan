@@ -48,6 +48,44 @@ pesertaRoutes.post('/daftar', validatePendaftaran, async (c) => {
   const instansi = ((body['instansi'] as string) || (nip ? `${jenis_kelamin ? jenis_kelamin + ' | ' : ''}NIP: ${nip}${domisili ? ' | ' + domisili : ''}` : '')).trim();
   const screenshot = body['screenshot'] as File;
 
+  // Cek duplikasi pendaftaran aktif (status 'menunggu', 'dikonfirmasi', atau 'hadir')
+  const [phone62, phone08] = getPhoneVariants(no_whatsapp);
+  try {
+    const existing = await db
+      .prepare(
+        `SELECT id, nama, status FROM pendaftar 
+         WHERE (no_whatsapp = ? OR no_whatsapp = ?) 
+           AND status != 'ditolak'
+         LIMIT 1`
+      )
+      .bind(phone62, phone08)
+      .first<{ id: string; nama: string; status: string }>();
+
+    if (existing) {
+      if (existing.status === 'menunggu') {
+        return c.json(
+          {
+            success: true,
+            id: existing.id,
+            nama: existing.nama,
+            message: 'Pendaftaran Anda sudah kami terima sebelumnya dan sedang dalam antrean verifikasi panitia.',
+          },
+          200
+        );
+      }
+      if (existing.status === 'dikonfirmasi' || existing.status === 'hadir') {
+        return c.json(
+          {
+            error: 'Nomor WhatsApp ini sudah terdaftar dan statusnya telah dikonfirmasi. Silakan buka menu Cek Tiket untuk melihat QR Code Anda.',
+          },
+          409
+        );
+      }
+    }
+  } catch (checkErr) {
+    console.warn('Pengecekan duplikasi pendaftar dilewati:', checkErr);
+  }
+
   const id = 'reg_' + nanoid(10);
 
   // Ambil ekstensi file

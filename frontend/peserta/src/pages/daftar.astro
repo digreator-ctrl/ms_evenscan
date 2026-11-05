@@ -477,11 +477,18 @@ import Layout from '../layouts/Layout.astro';
       }
     }
 
+    let isSubmitting = false;
+
     function initDaftarPage() {
       const API_URL = import.meta.env.PUBLIC_API_URL || 'http://localhost:8787';
 
       const form = document.getElementById('formDaftar') as HTMLFormElement | null;
       if (!form) return;
+
+      // Idempotency: Cegah inisialisasi ganda dari astro:page-load atau DOMContentLoaded
+      if (form.dataset.initialized === 'true') return;
+      form.dataset.initialized = 'true';
+      isSubmitting = false;
 
       const inputNama = document.getElementById('nama') as HTMLInputElement | null;
       const namaError = document.getElementById('namaError');
@@ -813,6 +820,9 @@ import Layout from '../layouts/Layout.astro';
         e.preventDefault();
         hideError();
 
+        // Cegah pengiriman ganda jika sedang dalam proses submit
+        if (isSubmitting) return;
+
         if (!validateNama()) {
           inputNama.focus();
           showError('Nama lengkap minimal 3 huruf.');
@@ -862,6 +872,9 @@ import Layout from '../layouts/Layout.astro';
           return;
         }
 
+        // Kunci submit button dan tampilkan status loading
+        isSubmitting = true;
+        submitBtn.disabled = true;
         submitBtn.classList.add('hidden');
         loadingState.classList.remove('hidden');
 
@@ -892,17 +905,20 @@ import Layout from '../layouts/Layout.astro';
           window.location.href = `/sukses?wa=${encodeURIComponent(noWa)}`;
         } catch (err: any) {
           showError(err.message || 'Terjadi kesalahan sistem saat mengirim data.');
+          isSubmitting = false;
+          submitBtn.disabled = false;
           submitBtn.classList.remove('hidden');
           loadingState.classList.add('hidden');
         }
       });
     }
 
+    // Inisialisasi aman untuk Astro View Transitions / ClientRouter
+    document.addEventListener('astro:page-load', initDaftarPage);
     if (document.readyState === 'loading') {
       document.addEventListener('DOMContentLoaded', initDaftarPage);
     } else {
       initDaftarPage();
     }
-    document.addEventListener('astro:page-load', initDaftarPage);
   </script>
 </Layout>

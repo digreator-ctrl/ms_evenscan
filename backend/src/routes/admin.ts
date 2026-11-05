@@ -3,6 +3,7 @@ import { nanoid } from 'nanoid';
 import { authMiddleware, createAdminToken } from '../middlewares/auth';
 import { WALinkService } from '../services/wa-link';
 import { verifyPassword, hashPassword } from '../services/auth-helper';
+import { StorageService } from '../services/storage';
 
 type Bindings = {
   DB: D1Database;
@@ -286,6 +287,55 @@ adminRoutes.patch('/pendaftar/:id/mark-wa-sent', async (c) => {
     return c.json({ success: true });
   } catch (err: any) {
     return c.json({ error: 'Gagal update status WA: ' + err.message }, 500);
+  }
+});
+
+/**
+ * DELETE /api/admin/pendaftar/:id
+ * Menghapus data pendaftar dan membersihkan file screenshot di R2 jika ada
+ */
+adminRoutes.delete('/pendaftar/:id', async (c) => {
+  const db = c.env.DB;
+  if (!db) {
+    return c.json({ error: 'Database D1 tidak terhubung' }, 500);
+  }
+
+  const id = c.req.param('id');
+  const storage = new StorageService(c.env.STORAGE);
+
+  try {
+    const record = await db
+      .prepare(`SELECT id, nama, screenshot_url FROM pendaftar WHERE id = ?`)
+      .bind(id)
+      .first<{ id: string; nama: string; screenshot_url: string | null }>();
+
+    if (!record) {
+      return c.json({ error: 'Data pendaftar tidak ditemukan' }, 404);
+    }
+
+    // Bersihkan file di R2 jika ada
+    if (record.screenshot_url) {
+      try {
+        const match = record.screenshot_url.match(/\/api\/peserta\/screenshot\/(.+)$/);
+        if (match) {
+          const key = decodeURIComponent(match[1]);
+          await storage.delete(key);
+        }
+      } catch (fileErr) {
+        console.warn('Gagal menghapus file R2:', fileErr);
+      }
+    }
+
+    // Hapus dari database D1
+    await db.prepare(`DELETE FROM pendaftar WHERE id = ?`).bind(id).run();
+
+    return c.json({
+      success: true,
+      message: `Pendaftar ${record.nama} berhasil dihapus`,
+    });
+  } catch (err: any) {
+    console.error('Error saat menghapus pendaftar:', err);
+    return c.json({ error: 'Gagal menghapus pendaftar: ' + err.message }, 500);
   }
 });
 

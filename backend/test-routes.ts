@@ -19,9 +19,9 @@ class MockD1Database {
       bind: (...params: any[]) => {
         return {
           first: async <T = any>(): Promise<T | null> => {
-            if (normalized.includes('WHERE no_whatsapp = ? OR no_whatsapp = ?')) {
+            if (normalized.includes('WHERE no_whatsapp = ? OR no_whatsapp = ?') || normalized.includes('WHERE (no_whatsapp = ? OR no_whatsapp = ?)')) {
               const res = this.pendaftar.find(
-                (p) => p.no_whatsapp === params[0] || p.no_whatsapp === params[1]
+                (p) => (p.no_whatsapp === params[0] || p.no_whatsapp === params[1]) && p.status !== 'ditolak'
               );
               return (res as T) || null;
             }
@@ -101,6 +101,9 @@ class MockD1Database {
               const [id] = params;
               const target = this.pendaftar.find((p) => p.id === id);
               if (target) target.wa_terkirim = 1;
+            } else if (normalized.includes('DELETE FROM pendaftar WHERE id = ?')) {
+              const [id] = params;
+              this.pendaftar = this.pendaftar.filter((p) => p.id !== id);
             }
             return { success: true };
           },
@@ -188,6 +191,14 @@ async function runTests() {
   console.log('   Response:', json2);
   if (!json2.success) throw new Error('Daftar failed: ' + JSON.stringify(json2));
   const pesertaId = json2.id;
+
+  // 2b. Test Deduplikasi (Cegah Pendaftaran Ganda)
+  console.log('\n2b. Test Cegah Duplikasi POST /api/peserta/daftar');
+  const res2b = await app.request('/api/peserta/daftar', { method: 'POST', body: formData }, env);
+  const json2b = await res2b.json();
+  console.log('   Status (harus 200 dengan id yang sama):', res2b.status);
+  console.log('   Response:', json2b);
+  if (json2b.id !== pesertaId) throw new Error('Deduplikasi gagal: ID tidak cocok');
 
   // 3. Cek Status Peserta
   console.log('\n3. Test GET /api/peserta/status?wa=081234567890');
@@ -288,7 +299,22 @@ async function runTests() {
   console.log('   Stats:', json10);
   if (json10.hadir !== 1) throw new Error('Stats calculation failed');
 
-  console.log('\n🎉 SEMUA 10 PENGUJIAN INTEGRASI TAHAP 2 BERHASIL 100%!');
+  // 11. Hapus Pendaftar (Admin DELETE)
+  console.log('\n11. Test DELETE /api/admin/pendaftar/:id');
+  const res11 = await app.request(
+    `/api/admin/pendaftar/${pesertaId}`,
+    {
+      method: 'DELETE',
+      headers: { Authorization: `Bearer ${adminToken}` },
+    },
+    env
+  );
+  console.log('   Status:', res11.status);
+  const json11 = await res11.json();
+  console.log('   Response:', json11);
+  if (res11.status !== 200 || !json11.success) throw new Error('Delete pendaftar failed');
+
+  console.log('\n🎉 SEMUA 11 PENGUJIAN INTEGRASI TAHAP 2 BERHASIL 100%!');
 }
 
 runTests().catch((err) => {
