@@ -35,7 +35,7 @@ adminRoutes.post('/login', async (c) => {
         id: 'admin_master',
         username: 'admin',
         nama: 'Administrator Muslim Scene',
-        role: 'admin',
+        role: 'superadmin',
       },
       secret
     );
@@ -45,7 +45,7 @@ adminRoutes.post('/login', async (c) => {
         id: 'admin_master',
         username: 'admin',
         nama: 'Administrator Muslim Scene',
-        role: 'admin',
+        role: 'superadmin',
       },
     });
   }
@@ -132,7 +132,11 @@ adminRoutes.get('/pendaftar', async (c) => {
       params.push(`%${search}%`, `%${search}%`, `%${search}%`);
     }
 
-    sql += ` ORDER BY created_at DESC`;
+    if (status === 'hadir') {
+      sql += ` ORDER BY attended_at DESC, created_at DESC`;
+    } else {
+      sql += ` ORDER BY created_at DESC`;
+    }
 
     const stmt = db.prepare(sql);
     const result = params.length > 0 ? await stmt.bind(...params).all() : await stmt.all();
@@ -282,5 +286,145 @@ adminRoutes.patch('/pendaftar/:id/mark-wa-sent', async (c) => {
     return c.json({ success: true });
   } catch (err: any) {
     return c.json({ error: 'Gagal update status WA: ' + err.message }, 500);
+  }
+});
+
+/**
+ * GET /api/admin/me
+ * Mendapatkan profil admin yang sedang login
+ */
+adminRoutes.get('/me', async (c) => {
+  const user = c.get('user');
+  if (!user) {
+    return c.json({ error: 'Tidak terotentikasi' }, 401);
+  }
+  return c.json({
+    user: {
+      id: user.id,
+      username: user.username,
+      nama: user.nama,
+      role: user.role,
+    },
+  });
+});
+
+/**
+ * GET /api/admin/users
+ * Mendapatkan daftar admin/pengguna (Khusus Superadmin)
+ */
+adminRoutes.get('/users', async (c) => {
+  const currentUser = c.get('user');
+  if (!currentUser || currentUser.role !== 'superadmin') {
+    return c.json({ error: 'Akses terbatas hanya untuk Superadmin' }, 403);
+  }
+
+  const db = c.env.DB;
+  if (!db) {
+    return c.json({ error: 'Database tidak terhubung' }, 500);
+  }
+
+  try {
+    const result = await db
+      .prepare(`SELECT id, username, nama, role, created_at FROM admin_users ORDER BY created_at DESC`)
+      .all();
+    return c.json({ users: result.results || [] });
+  } catch (err: any) {
+    return c.json({ error: 'Gagal mengambil daftar pengguna: ' + err.message }, 500);
+  }
+});
+
+/**
+ * POST /api/admin/users
+ * Menambahkan admin/pengguna baru (Khusus Superadmin)
+ */
+adminRoutes.post('/users', async (c) => {
+  const currentUser = c.get('user');
+  if (!currentUser || currentUser.role !== 'superadmin') {
+    return c.json({ error: 'Akses terbatas hanya untuk Superadmin' }, 403);
+  }
+
+  const db = c.env.DB;
+  if (!db) {
+    return c.json({ error: 'Database tidak terhubung' }, 500);
+  }
+
+  const body = await c.req.json().catch(() => ({}));
+  const username = (body.username as string)?.trim().toLowerCase();
+  const password = body.password as string;
+  const nama = (body.nama as string)?.trim();
+  const role = (body.role as string)?.trim().toLowerCase() || 'panitia';
+
+  if (!username || !password || !nama) {
+    return c.json({ error: 'Nama, username, dan password wajib diisi' }, 400);
+  }
+
+  if (password.length < 6) {
+    return c.json({ error: 'Password minimal 6 karakter' }, 400);
+  }
+
+  const validRoles = ['superadmin', 'panitia', 'scanner'];
+  if (!validRoles.includes(role)) {
+    return c.json({ error: 'Role tidak valid. Pilihan: superadmin, panitia, scanner' }, 400);
+  }
+
+  try {
+    const existing = await db
+      .prepare(`SELECT id FROM admin_users WHERE username = ?`)
+      .bind(username)
+      .first();
+
+    if (existing) {
+      return c.json({ error: 'Username sudah digunakan' }, 400);
+    }
+
+    const id = 'usr_' + nanoid(10);
+    const passwordHash = await hashPassword(password);
+
+    await db
+      .prepare(
+        `INSERT INTO admin_users (id, username, password_hash, nama, role)
+         VALUES (?, ?, ?, ?, ?)`
+      )
+      .bind(id, username, passwordHash, nama, role)
+      .run();
+
+    return c.json(
+      {
+        success: true,
+        message: 'Pengguna berhasil ditambahkan',
+        user: { id, username, nama, role },
+      },
+      201
+    );
+  } catch (err: any) {
+    return c.json({ error: 'Gagal menambahkan pengguna: ' + err.message }, 500);
+  }
+});
+
+/**
+ * DELETE /api/admin/users/:id
+ * Menghapus admin/pengguna (Khusus Superadmin)
+ */
+adminRoutes.delete('/users/:id', async (c) => {
+  const currentUser = c.get('user');
+  if (!currentUser || currentUser.role !== 'superadmin') {
+    return c.json({ error: 'Akses terbatas hanya untuk Superadmin' }, 403);
+  }
+
+  const id = c.req.param('id');
+  if (id === currentUser.id || id === 'admin_master') {
+    return c.json({ error: 'Tidak dapat menghapus akun Anda sendiri atau akun master' }, 400);
+  }
+
+  const db = c.env.DB;
+  if (!db) {
+    return c.json({ error: 'Database tidak terhubung' }, 500);
+  }
+
+  try {
+    await db.prepare(`DELETE FROM admin_users WHERE id = ?`).bind(id).run();
+    return c.json({ success: true, message: 'Pengguna berhasil dihapus' });
+  } catch (err: any) {
+    return c.json({ error: 'Gagal menghapus pengguna: ' + err.message }, 500);
   }
 });

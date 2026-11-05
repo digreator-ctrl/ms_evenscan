@@ -95,14 +95,14 @@ import Layout from '../layouts/Layout.astro';
           </p>
         </div>
 
-        <!-- 4. Domisili (Provinsi, Kota/Kabupaten, Kecamatan, Kelurahan/Desa dari API & Searchable) -->
+        <!-- 4. Domisili (Provinsi, Kota/Kabupaten, Kecamatan, Kelurahan/Desa - Opsional) -->
         <div class="space-y-3">
           <div>
             <label class="block text-sm font-semibold text-slate-700">
-              4. Domisili: Provinsi, Kota/Kabupaten, Kecamatan, Kelurahan/Desa <span class="text-red-500">*</span>
+              4. Domisili: Provinsi, Kota/Kabupaten, Kecamatan, Kelurahan/Desa <span class="text-xs text-slate-400 font-normal">(Opsional)</span>
             </label>
             <p class="text-xs text-slate-400 mt-0.5">
-              Pilih dari dropdown atau ketik nama wilayah untuk pencarian cepat (diurutkan abjad).
+              Opsional. Boleh dikosongkan atau diisi dengan memilih dropdown / mengetik nama wilayah.
             </p>
           </div>
 
@@ -110,7 +110,7 @@ import Layout from '../layouts/Layout.astro';
             <!-- Level 1: Provinsi -->
             <div class="relative" id="field_provinsi">
               <label for="search_provinsi" class="block text-[11px] font-semibold text-slate-600 uppercase tracking-wider mb-1">
-                Provinsi <span class="text-red-500">*</span>
+                Provinsi
               </label>
               <div class="relative">
                 <input
@@ -118,9 +118,9 @@ import Layout from '../layouts/Layout.astro';
                   id="search_provinsi"
                   autocomplete="off"
                   placeholder="Ketik / pilih Provinsi..."
-                  class="w-full bg-white border border-slate-300 rounded-xl px-3.5 py-2.5 text-sm pr-9 focus:ring-2 focus:ring-primary-500/20 focus:border-primary-600 outline-none transition"
+                  class="w-full bg-white border border-slate-300 rounded-xl px-3.5 py-2.5 text-sm pr-9 focus:ring-2 focus:ring-primary-500/20 focus:border-primary-600 outline-none transition cursor-pointer"
                 />
-                <div class="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-slate-400">
+                <div class="chevron-icon absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 cursor-pointer p-0.5 hover:text-primary-600 transition">
                   <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
                 </div>
               </div>
@@ -134,7 +134,7 @@ import Layout from '../layouts/Layout.astro';
             <!-- Level 2: Kota / Kabupaten -->
             <div class="relative" id="field_kota">
               <label for="search_kota" class="block text-[11px] font-semibold text-slate-600 uppercase tracking-wider mb-1">
-                Kota / Kabupaten <span class="text-red-500">*</span>
+                Kota / Kabupaten
               </label>
               <div class="relative">
                 <input
@@ -145,7 +145,7 @@ import Layout from '../layouts/Layout.astro';
                   placeholder="Pilih Provinsi terlebih dahulu"
                   class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2.5 text-sm pr-9 focus:ring-2 focus:ring-primary-500/20 focus:border-primary-600 outline-none transition disabled:bg-slate-100 disabled:text-slate-400 disabled:cursor-not-allowed"
                 />
-                <div class="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-slate-400">
+                <div class="chevron-icon absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 cursor-pointer p-0.5 hover:text-primary-600 transition">
                   <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
                 </div>
               </div>
@@ -157,7 +157,7 @@ import Layout from '../layouts/Layout.astro';
             <!-- Level 3: Kecamatan -->
             <div class="relative" id="field_kecamatan">
               <label for="search_kecamatan" class="block text-[11px] font-semibold text-slate-600 uppercase tracking-wider mb-1">
-                Kecamatan <span class="text-red-500">*</span>
+                Kecamatan
               </label>
               <div class="relative">
                 <input
@@ -168,7 +168,7 @@ import Layout from '../layouts/Layout.astro';
                   placeholder="Pilih Kota/Kabupaten dahulu"
                   class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2.5 text-sm pr-9 focus:ring-2 focus:ring-primary-500/20 focus:border-primary-600 outline-none transition disabled:bg-slate-100 disabled:text-slate-400 disabled:cursor-not-allowed"
                 />
-                <div class="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-slate-400">
+                <div class="chevron-icon absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 cursor-pointer p-0.5 hover:text-primary-600 transition">
                   <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
                 </div>
               </div>
@@ -180,7 +180,7 @@ import Layout from '../layouts/Layout.astro';
             <!-- Level 4: Kelurahan / Desa -->
             <div class="relative" id="field_desa">
               <label for="search_desa" class="block text-[11px] font-semibold text-slate-600 uppercase tracking-wider mb-1">
-                Kelurahan / Desa <span class="text-red-500">*</span>
+                Kelurahan / Desa
               </label>
               <div class="relative">
                 <input
@@ -191,7 +191,7 @@ import Layout from '../layouts/Layout.astro';
                   placeholder="Pilih Kecamatan dahulu"
                   class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2.5 text-sm pr-9 focus:ring-2 focus:ring-primary-500/20 focus:border-primary-600 outline-none transition disabled:bg-slate-100 disabled:text-slate-400 disabled:cursor-not-allowed"
                 />
-                <div class="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-slate-400">
+                <div class="chevron-icon absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 cursor-pointer p-0.5 hover:text-primary-600 transition">
                   <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
                 </div>
               </div>
@@ -330,19 +330,16 @@ import Layout from '../layouts/Layout.astro';
 
         if (!this.input || !this.list) return;
 
-        this.input.addEventListener('focus', () => {
+        const openDropdown = () => {
           if (!this.input.disabled && this.items.length > 0) {
-            this.renderList(this.input.value);
+            // Tampilkan seluruh daftar pilihan saat diklik / difokuskan
+            this.renderList('');
             this.openList();
           }
-        });
+        };
 
-        this.input.addEventListener('click', () => {
-          if (!this.input.disabled && this.items.length > 0) {
-            this.renderList(this.input.value);
-            this.openList();
-          }
-        });
+        this.input.addEventListener('focus', openDropdown);
+        this.input.addEventListener('click', openDropdown);
 
         this.input.addEventListener('input', () => {
           this.hiddenId.value = '';
@@ -350,6 +347,23 @@ import Layout from '../layouts/Layout.astro';
           this.renderList(this.input.value);
           this.openList();
         });
+
+        // Klik panah chevron untuk buka/tutup dropdown
+        const iconWrapper = this.wrapper?.querySelector('.chevron-icon');
+        if (iconWrapper) {
+          iconWrapper.addEventListener('click', (e) => {
+            e.stopPropagation();
+            if (!this.input.disabled && this.items.length > 0) {
+              if (this.list.classList.contains('hidden')) {
+                this.renderList('');
+                this.openList();
+                this.input.focus();
+              } else {
+                this.closeList();
+              }
+            }
+          });
+        }
 
         // Tutup jika klik di luar dropdown
         document.addEventListener('click', (e) => {
@@ -374,6 +388,7 @@ import Layout from '../layouts/Layout.astro';
         // Urut abjad secara alfabetis
         this.items = [...items].sort((a, b) => a.name.localeCompare(b.name, 'id'));
         this.enable('Pilih atau ketik untuk mencari...');
+        this.renderList('');
       }
 
       setLoading(message = 'Memuat data...') {
@@ -553,7 +568,49 @@ import Layout from '../layouts/Layout.astro';
       // ==========================================
       // 3. WILAYAH INDONESIA API & SEARCHABLE DROPDOWN
       // ==========================================
-      const WILAYAH_API = 'https://emsifa.github.io/api-wilayah-indonesia/api';
+      const WILAYAH_API = 'https://www.emsifa.com/api-wilayah-indonesia/api';
+
+      // 38 Provinsi Resmi Indonesia sebagai default lokal instan (0ms delay)
+      const DEFAULT_PROVINCES: RegionItem[] = [
+        { id: '11', name: 'ACEH' },
+        { id: '12', name: 'SUMATERA UTARA' },
+        { id: '13', name: 'SUMATERA BARAT' },
+        { id: '14', name: 'RIAU' },
+        { id: '15', name: 'JAMBI' },
+        { id: '16', name: 'SUMATERA SELATAN' },
+        { id: '17', name: 'BENGKULU' },
+        { id: '18', name: 'LAMPUNG' },
+        { id: '19', name: 'KEPULAUAN BANGKA BELITUNG' },
+        { id: '21', name: 'KEPULAUAN RIAU' },
+        { id: '31', name: 'DKI JAKARTA' },
+        { id: '32', name: 'JAWA BARAT' },
+        { id: '33', name: 'JAWA TENGAH' },
+        { id: '34', name: 'DI YOGYAKARTA' },
+        { id: '35', name: 'JAWA TIMUR' },
+        { id: '36', name: 'BANTEN' },
+        { id: '51', name: 'BALI' },
+        { id: '52', name: 'NUSA TENGGARA BARAT' },
+        { id: '53', name: 'NUSA TENGGARA TIMUR' },
+        { id: '61', name: 'KALIMANTAN BARAT' },
+        { id: '62', name: 'KALIMANTAN TENGAH' },
+        { id: '63', name: 'KALIMANTAN SELATAN' },
+        { id: '64', name: 'KALIMANTAN TIMUR' },
+        { id: '65', name: 'KALIMANTAN UTARA' },
+        { id: '71', name: 'SULAWESI UTARA' },
+        { id: '72', name: 'SULAWESI TENGAH' },
+        { id: '73', name: 'SULAWESI SELATAN' },
+        { id: '74', name: 'SULAWESI TENGGARA' },
+        { id: '75', name: 'GORONTALO' },
+        { id: '76', name: 'SULAWESI BARAT' },
+        { id: '81', name: 'MALUKU' },
+        { id: '82', name: 'MALUKU UTARA' },
+        { id: '91', name: 'PAPUA BARAT' },
+        { id: '92', name: 'PAPUA BARAT DAYA' },
+        { id: '93', name: 'PAPUA SELATAN' },
+        { id: '94', name: 'PAPUA' },
+        { id: '95', name: 'PAPUA TENGAH' },
+        { id: '96', name: 'PAPUA PEGUNUNGAN' }
+      ];
 
       const ddDesa = new SearchableDropdown('desa');
       const ddKecamatan = new SearchableDropdown(
@@ -614,16 +671,21 @@ import Layout from '../layouts/Layout.astro';
         }
       );
 
-      // Load Provinsi saat halaman dibuka
+      // Langsung muat default 38 provinsi seketika agar saat input diklik langsung muncul
+      ddProvinsi.setItems(DEFAULT_PROVINCES);
+
+      // Sinkronisasi data provinsi online di background
       async function loadProvinces() {
-        ddProvinsi.setLoading('Memuat daftar provinsi...');
         try {
           const res = await fetch(`${WILAYAH_API}/provinces.json`);
-          if (!res.ok) throw new Error();
-          const data: RegionItem[] = await res.json();
-          ddProvinsi.setItems(data);
+          if (res.ok) {
+            const data: RegionItem[] = await res.json();
+            if (Array.isArray(data) && data.length > 0) {
+              ddProvinsi.setItems(data);
+            }
+          }
         } catch {
-          ddProvinsi.enable('Ketik nama provinsi manual');
+          // Tetap menggunakan DEFAULT_PROVINCES
         }
       }
       loadProvinces();
@@ -790,11 +852,6 @@ import Layout from '../layouts/Layout.astro';
           return;
         }
 
-        if (!prov || !kota || !kec || !desa) {
-          showError('Harap lengkapi seluruh data domisili (Provinsi, Kota/Kabupaten, Kecamatan, dan Kelurahan/Desa).');
-          return;
-        }
-
         if (!alasan) {
           showError('Harap jelaskan singkat alasan Anda ingin mengikuti acara ini.');
           return;
@@ -816,7 +873,10 @@ import Layout from '../layouts/Layout.astro';
           formData.append('no_whatsapp', noWa);
           formData.append('domisili', domisili);
           formData.append('alasan', alasan);
-          formData.append('instansi', `${jenisKelamin} | NIP: ${nip} | ${kota}, ${prov}`);
+
+          const lokasi = [kota, prov].filter(Boolean).join(', ');
+          const instansi = [jenisKelamin, `NIP: ${nip}`, lokasi].filter(Boolean).join(' | ');
+          formData.append('instansi', instansi || 'Peserta');
           formData.append('screenshot', selectedFile, originalFileName || 'ss_akun_hsi.jpg');
 
           const res = await fetch(`${API_URL}/api/peserta/daftar`, {
@@ -838,6 +898,11 @@ import Layout from '../layouts/Layout.astro';
       });
     }
 
+    if (document.readyState === 'loading') {
+      document.addEventListener('DOMContentLoaded', initDaftarPage);
+    } else {
+      initDaftarPage();
+    }
     document.addEventListener('astro:page-load', initDaftarPage);
   </script>
 </Layout>

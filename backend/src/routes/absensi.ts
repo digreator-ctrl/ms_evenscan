@@ -46,6 +46,58 @@ absensiRoutes.get('/stats', async (c) => {
 });
 
 /**
+ * POST /api/absensi/lookup
+ * Mencari dan menampilkan preview data peserta berdasarkan token QR tanpa mengubah statusnya
+ */
+absensiRoutes.post('/lookup', async (c) => {
+  const db = c.env.DB;
+  if (!db) {
+    return c.json({ error: 'Database D1 tidak terhubung' }, 500);
+  }
+
+  const body = await c.req.json().catch(() => ({}));
+  const token = (body.token as string)?.trim();
+
+  if (!token) {
+    return c.json({ error: 'Kode token QR wajib dikirim' }, 400);
+  }
+
+  try {
+    const pendaftar = await db
+      .prepare(
+        `SELECT id, nama, email, no_whatsapp, instansi, status, qr_token, attended_at, created_at, confirmed_at, screenshot_url
+         FROM pendaftar
+         WHERE qr_token = ?`
+      )
+      .bind(token)
+      .first<{
+        id: string;
+        nama: string;
+        email: string;
+        no_whatsapp: string;
+        instansi: string;
+        status: string;
+        qr_token: string;
+        attended_at: string | null;
+        created_at: string;
+        confirmed_at: string | null;
+        screenshot_url: string | null;
+      }>();
+
+    if (!pendaftar) {
+      return c.json({ error: 'QR Code tidak terdaftar / tidak valid!' }, 404);
+    }
+
+    return c.json({
+      success: true,
+      data: pendaftar,
+    });
+  } catch (err: any) {
+    return c.json({ error: 'Gagal mencari data QR: ' + err.message }, 500);
+  }
+});
+
+/**
  * POST /api/absensi/scan
  * Validasi QR code kehadiran saat di-scan oleh kamera HP panitia
  */

@@ -5,6 +5,8 @@ import { Login } from './pages/login';
 import { Verifikasi } from './pages/verifikasi';
 import { Scanner } from './pages/scanner';
 import { Dashboard } from './pages/dashboard';
+import { RiwayatScan } from './pages/riwayat-scan';
+import { Pengaturan } from './pages/pengaturan';
 import { Layout } from './components/Layout';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8787';
@@ -25,8 +27,10 @@ function App() {
           <Route path="/login" element={<Login />} />
           <Route element={<Layout />}>
             <Route path="/" element={<Dashboard />} />
+            <Route path="/riwayat-scan" element={<RiwayatScan />} />
             <Route path="/verifikasi" element={<Verifikasi />} />
             <Route path="/scanner" element={<Scanner />} />
+            <Route path="/pengaturan" element={<Pengaturan />} />
           </Route>
           <Route path="*" element={<Navigate to="/" />} />
         </Routes>

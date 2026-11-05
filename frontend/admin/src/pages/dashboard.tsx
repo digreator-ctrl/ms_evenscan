@@ -51,12 +51,17 @@ export function Dashboard() {
       <h1 className="text-2xl font-bold text-gray-900 mb-6">Dashboard</h1>
 
       {/* Stats Cards */}
-      <div className="grid grid-cols-2 md:grid-cols-5 gap-4 mb-8">
-        {cards.map((card) => (
-          <div key={card.label} className={`rounded-xl border p-5 ${card.color}`}>
-            <div className="text-2xl mb-2">{card.icon}</div>
-            <div className="text-3xl font-bold">{card.value}</div>
-            <div className="text-sm mt-1 opacity-75">{card.label}</div>
+      <div className="grid grid-cols-2 md:grid-cols-5 gap-3 sm:gap-4 mb-8">
+        {cards.map((card, idx) => (
+          <div
+            key={card.label}
+            className={`rounded-xl border p-4 sm:p-5 ${card.color} ${
+              idx === 0 ? 'col-span-2 md:col-span-1' : ''
+            }`}
+          >
+            <div className="text-2xl mb-1.5">{card.icon}</div>
+            <div className="text-2xl sm:text-3xl font-bold">{card.value}</div>
+            <div className="text-xs sm:text-sm mt-1 opacity-75 font-medium">{card.label}</div>
           </div>
         ))}
       </div>
