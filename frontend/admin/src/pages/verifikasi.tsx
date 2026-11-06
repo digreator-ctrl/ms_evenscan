@@ -272,31 +272,57 @@ _Panitia Muslim Scene Event_`;
         </div>
       </div>
 
-      {/* Filter Tabs & Search */}
-      <div className="flex flex-col md:flex-row gap-3 items-stretch md:items-center justify-between">
-        <div className="flex flex-wrap gap-1.5 bg-slate-200/60 p-1 rounded-xl">
-          {['semua', 'menunggu', 'dikonfirmasi', 'hadir', 'ditolak'].map((f) => (
-            <button
-              key={f}
-              onClick={() => setFilter(f)}
-              className={`px-3.5 py-1.5 rounded-lg text-xs font-bold transition capitalize cursor-pointer ${
-                filter === f
-                  ? 'bg-white text-slate-900 shadow-xs'
-                  : 'text-slate-600 hover:text-slate-900'
-              }`}
-            >
-              {f}
-            </button>
-          ))}
-        </div>
-        <div className="relative min-w-[260px]">
+      {/* SEARCH & FILTER BAR SEJAJAR */}
+      <div className="bg-white rounded-2xl p-3 sm:p-4 border border-slate-200/90 shadow-xs flex flex-row items-center gap-2 sm:gap-3">
+        {/* Kolom Search */}
+        <div className="relative flex-1 min-w-0">
+          <svg
+            className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none"
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+          >
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+          </svg>
           <input
             type="text"
             placeholder="Cari nama, NIP, WA, instansi..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            className="w-full bg-white border border-slate-200 rounded-xl px-4 py-2 text-xs focus:ring-2 focus:ring-[#06305d]/20 focus:border-[#06305d] outline-none transition"
+            className="w-full pl-9 pr-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-[#06305d]/20 focus:border-[#06305d] transition"
           />
+        </div>
+
+        {/* Button Dropdown Filter Status */}
+        <div className="shrink-0 relative">
+          <select
+            value={filter}
+            onChange={(e) => setFilter(e.target.value)}
+            className="appearance-none pl-8 pr-8 py-2.5 bg-slate-50 hover:bg-slate-100 border border-slate-200 rounded-xl text-xs font-semibold text-slate-700 cursor-pointer focus:outline-none focus:ring-2 focus:ring-[#06305d]/20 transition"
+            title="Filter Status Pendaftar"
+          >
+            <option value="semua">Semua Status ({pendaftar.length})</option>
+            <option value="menunggu">Menunggu ({pendaftar.filter((p) => p.status === 'menunggu').length})</option>
+            <option value="dikonfirmasi">Dikonfirmasi ({pendaftar.filter((p) => p.status === 'dikonfirmasi').length})</option>
+            <option value="hadir">Hadir ({pendaftar.filter((p) => p.status === 'hadir').length})</option>
+            <option value="ditolak">Ditolak ({pendaftar.filter((p) => p.status === 'ditolak').length})</option>
+          </select>
+          <svg
+            className="w-3.5 h-3.5 text-slate-500 absolute left-2.5 top-1/2 -translate-y-1/2 pointer-events-none"
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+          >
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z" />
+          </svg>
+          <svg
+            className="w-3.5 h-3.5 text-slate-400 absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none"
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+          >
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7" />
+          </svg>
         </div>
       </div>
 
