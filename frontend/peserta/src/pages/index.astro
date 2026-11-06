@@ -48,7 +48,7 @@ import Logo from "../components/Logo.astro";
               <span>👥</span>
               <span>KUOTA ACARA</span>
             </div>
-            <div class="text-xl sm:text-2xl font-black">Terbuka</div>
+            <div id="kuotaStatus" class="text-xl sm:text-2xl font-black">Terbuka</div>
           </div>
 
           <div
@@ -79,11 +79,12 @@ import Logo from "../components/Logo.astro";
         <!-- CTA Buttons -->
         <div class="flex flex-col sm:flex-row gap-2.5 sm:gap-3 pt-1">
           <a
+            id="btnDaftar"
             href="/daftar"
             class="bg-white hover:bg-sky-50 text-[#07407b] font-black px-5 py-3 sm:px-6 sm:py-3.5 rounded-xl transition duration-150 shadow-md text-xs sm:text-sm flex items-center justify-center gap-2"
           >
-            <span>Daftar Sekarang</span>
-            <span>→</span>
+            <span id="btnDaftarText">Daftar Sekarang</span>
+            <span id="btnDaftarIcon">→</span>
           </a>
           <a
             href="/status"
@@ -219,4 +220,54 @@ import Logo from "../components/Logo.astro";
       </div>
     </section>
   </div>
+
+  <script>
+    function updateKuotaStatus() {
+      const API_URL = import.meta.env.PUBLIC_API_URL || 'http://localhost:8787';
+      const kuotaEl = document.getElementById('kuotaStatus');
+      const btnDaftar = document.getElementById('btnDaftar') as HTMLAnchorElement | null;
+      const btnText = document.getElementById('btnDaftarText');
+      const btnIcon = document.getElementById('btnDaftarIcon');
+
+      if (!kuotaEl || !btnDaftar) return;
+
+      fetch(`${API_URL}/api/peserta/config`)
+        .then((res) => {
+          if (!res.ok) throw new Error('Network error');
+          return res.json();
+        })
+        .then((data: any) => {
+          const isBuka = data.pendaftaran_buka ?? true;
+          if (!isBuka) {
+            kuotaEl.textContent = 'Ditutup';
+            kuotaEl.classList.add('text-amber-300');
+            if (btnText) btnText.textContent = 'Kuota Acara Ditutup';
+            if (btnIcon) btnIcon.textContent = '🔒';
+            btnDaftar.removeAttribute('href');
+            btnDaftar.setAttribute('aria-disabled', 'true');
+            btnDaftar.classList.remove('bg-white', 'hover:bg-sky-50', 'text-[#07407b]', 'shadow-md');
+            btnDaftar.classList.add('bg-white/20', 'text-white/60', 'cursor-not-allowed', 'pointer-events-none', 'border', 'border-white/15');
+          } else {
+            kuotaEl.textContent = 'Terbuka';
+            kuotaEl.classList.remove('text-amber-300');
+            if (btnText) btnText.textContent = 'Daftar Sekarang';
+            if (btnIcon) btnIcon.textContent = '→';
+            btnDaftar.setAttribute('href', '/daftar');
+            btnDaftar.removeAttribute('aria-disabled');
+            btnDaftar.classList.remove('bg-white/20', 'text-white/60', 'cursor-not-allowed', 'pointer-events-none', 'border', 'border-white/15');
+            btnDaftar.classList.add('bg-white', 'hover:bg-sky-50', 'text-[#07407b]', 'shadow-md');
+          }
+        })
+        .catch((err) => {
+          console.warn('Gagal memuat status kuota:', err);
+        });
+    }
+
+    document.addEventListener('astro:page-load', updateKuotaStatus);
+    if (document.readyState === 'loading') {
+      document.addEventListener('DOMContentLoaded', updateKuotaStatus);
+    } else {
+      updateKuotaStatus();
+    }
+  </script>
 </Layout>

@@ -3,13 +3,14 @@ import app from './src/index';
 // Simple in-memory mock for Cloudflare D1
 class MockD1Database {
   private pendaftar: any[] = [];
+  private settings: Map<string, string> = new Map([['pendaftaran_buka', 'true']]);
   private adminUsers: any[] = [
     {
       id: 'admin_default',
       username: 'admin',
       password_hash: 'admin123',
       nama: 'Administrator',
-      role: 'panitia',
+      role: 'superadmin',
     },
   ];
 
@@ -19,6 +20,10 @@ class MockD1Database {
       bind: (...params: any[]) => {
         return {
           first: async <T = any>(): Promise<T | null> => {
+            if (normalized.includes('app_settings')) {
+              const key = params[0] || 'pendaftaran_buka';
+              return { value: this.settings.get(key) || 'true', updated_at: new Date().toISOString() } as T;
+            }
             if (normalized.includes('WHERE no_whatsapp = ? OR no_whatsapp = ?') || normalized.includes('WHERE (no_whatsapp = ? OR no_whatsapp = ?)')) {
               const res = this.pendaftar.find(
                 (p) => (p.no_whatsapp === params[0] || p.no_whatsapp === params[1]) && p.status !== 'ditolak'
@@ -40,10 +45,11 @@ class MockD1Database {
             if (normalized.includes('COUNT(*) as total')) {
               const total = this.pendaftar.length;
               const menunggu = this.pendaftar.filter((p) => p.status === 'menunggu').length;
-              const dikonfirmasi = this.pendaftar.filter((p) => p.status === 'dikonfirmasi').length;
-              const hadir = this.pendaftar.filter((p) => p.status === 'hadir').length;
+              const sudah_hadir = this.pendaftar.filter((p) => p.status === 'hadir').length;
+              const belum_hadir = this.pendaftar.filter((p) => p.status === 'dikonfirmasi').length;
+              const dikonfirmasi = sudah_hadir + belum_hadir;
               const ditolak = this.pendaftar.filter((p) => p.status === 'ditolak').length;
-              return { total, menunggu, dikonfirmasi, hadir, ditolak } as T;
+              return { total, menunggu, dikonfirmasi, ditolak, sudah_hadir, belum_hadir } as T;
             }
             return null;
           },
@@ -56,6 +62,12 @@ class MockD1Database {
             return { results: res as T[] };
           },
           run: async () => {
+            if (normalized.includes('app_settings')) {
+              if (params.length > 0) {
+                this.settings.set('pendaftaran_buka', String(params[0]));
+              }
+              return { success: true };
+            }
             if (normalized.includes('INSERT INTO pendaftar')) {
               const [id, nama, email, no_whatsapp, instansi, screenshot_url] = params;
               this.pendaftar.push({
@@ -113,16 +125,21 @@ class MockD1Database {
         return { results: [...this.pendaftar] as T[] };
       },
       first: async <T = any>(): Promise<T | null> => {
+        if (normalized.includes('app_settings')) {
+          return { value: this.settings.get('pendaftaran_buka') || 'true', updated_at: new Date().toISOString() } as T;
+        }
         if (normalized.includes('COUNT(*) as total')) {
           const total = this.pendaftar.length;
           const menunggu = this.pendaftar.filter((p) => p.status === 'menunggu').length;
-          const dikonfirmasi = this.pendaftar.filter((p) => p.status === 'dikonfirmasi').length;
-          const hadir = this.pendaftar.filter((p) => p.status === 'hadir').length;
+          const sudah_hadir = this.pendaftar.filter((p) => p.status === 'hadir').length;
+          const belum_hadir = this.pendaftar.filter((p) => p.status === 'dikonfirmasi').length;
+          const dikonfirmasi = sudah_hadir + belum_hadir;
           const ditolak = this.pendaftar.filter((p) => p.status === 'ditolak').length;
-          return { total, menunggu, dikonfirmasi, hadir, ditolak } as T;
+          return { total, menunggu, dikonfirmasi, ditolak, sudah_hadir, belum_hadir } as T;
         }
         return (this.pendaftar[0] as T) || null;
       },
+      run: async () => ({ success: true }),
     };
   }
 }
@@ -172,6 +189,15 @@ async function runTests() {
   const json1 = await res1.json();
   console.log('   Response:', json1);
   if (json1.status !== 'ok') throw new Error('Health check failed');
+
+  // 1b. Test GET /api/peserta/config
+  console.log('\n1b. Test GET /api/peserta/config');
+  const resConfig = await app.request('/api/peserta/config', {}, env);
+  const jsonConfig = await resConfig.json();
+  console.log('   Response:', jsonConfig);
+  if (!jsonConfig.pendaftaran_buka || jsonConfig.kuota_status !== 'Terbuka') {
+    throw new Error('Config check failed');
+  }
 
   // 2. Pendaftaran
   console.log('\n2. Test POST /api/peserta/daftar');
@@ -224,6 +250,19 @@ async function runTests() {
   console.log('   Token:', json4.token ? json4.token.substring(0, 30) + '...' : 'none');
   if (!json4.token) throw new Error('Login failed');
   const adminToken = json4.token;
+
+  // 4b. Test Admin Settings Pendaftaran (Superadmin)
+  console.log('\n4b. Test GET & PATCH /api/admin/settings/pendaftaran');
+  const resSettingGet = await app.request(
+    '/api/admin/settings/pendaftaran',
+    { headers: { Authorization: `Bearer ${adminToken}` } },
+    env
+  );
+  const jsonSettingGet = await resSettingGet.json();
+  console.log('   GET Settings Response:', jsonSettingGet);
+  if (!jsonSettingGet.success || jsonSettingGet.pendaftaran_buka !== true) {
+    throw new Error('Get admin settings failed');
+  }
 
   // 5. Admin List Pendaftar
   console.log('\n5. Test GET /api/admin/pendaftar');
@@ -314,7 +353,7 @@ async function runTests() {
   console.log('   Response:', json11);
   if (res11.status !== 200 || !json11.success) throw new Error('Delete pendaftar failed');
 
-  console.log('\n🎉 SEMUA 11 PENGUJIAN INTEGRASI TAHAP 2 BERHASIL 100%!');
+  console.log('\n🎉 SEMUA PENGUJIAN INTEGRASI BERHASIL 100%!');
 }
 
 runTests().catch((err) => {

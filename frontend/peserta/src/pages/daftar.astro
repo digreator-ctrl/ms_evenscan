@@ -15,6 +15,16 @@ import Layout from '../layouts/Layout.astro';
         </p>
       </div>
 
+      <!-- Closed Banner -->
+      <div id="closedBanner" class="hidden mb-6 p-4 rounded-2xl bg-amber-50 border border-amber-200 text-amber-900 flex items-start gap-3">
+        <span class="text-xl">⚠️</span>
+        <div>
+          <h3 class="font-bold text-sm">Pendaftaran Sedang Ditutup</h3>
+          <p class="text-xs text-amber-800 mt-0.5">Mohon maaf, kuota pendaftaran acara saat ini sedang ditutup oleh panitia.</p>
+          <a href="/" class="inline-block mt-2 text-xs font-bold text-[#07407b] hover:underline">← Kembali ke Beranda</a>
+        </div>
+      </div>
+
       <!-- Form Card -->
       <form id="formDaftar" class="bg-white rounded-2xl shadow-sm border border-slate-200/80 p-6 sm:p-8 space-y-6">
         <!-- 1. Nama Lengkap (Minimal 3 Huruf, Indikator Merah Interaktif) -->
@@ -482,6 +492,26 @@ import Layout from '../layouts/Layout.astro';
       if (form.dataset.initialized === 'true') return;
       form.dataset.initialized = 'true';
       isSubmitting = false;
+
+      // Cek status kuota pendaftaran
+      fetch(`${API_URL}/api/peserta/config`)
+        .then((res) => res.json())
+        .then((data: any) => {
+          if (data && data.pendaftaran_buka === false) {
+            const banner = document.getElementById('closedBanner');
+            if (banner) banner.classList.remove('hidden');
+            if (submitBtn) {
+              submitBtn.disabled = true;
+              submitBtn.textContent = 'Kuota Acara Ditutup';
+              submitBtn.classList.remove('bg-primary-600', 'hover:bg-primary-700');
+              submitBtn.classList.add('bg-slate-300', 'text-slate-500', 'cursor-not-allowed', 'shadow-none');
+            }
+            form.querySelectorAll('input, textarea').forEach((el) => {
+              (el as HTMLInputElement).disabled = true;
+            });
+          }
+        })
+        .catch((err) => console.warn('Cek config gagal:', err));
 
       const inputNama = document.getElementById('nama') as HTMLInputElement | null;
       const namaError = document.getElementById('namaError');

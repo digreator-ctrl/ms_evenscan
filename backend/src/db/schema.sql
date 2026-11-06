@@ -30,6 +30,13 @@ CREATE TABLE IF NOT EXISTS admin_users (
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP
 );
 
+-- Tabel konfigurasi aplikasi & sistem
+CREATE TABLE IF NOT EXISTS app_settings (
+    key TEXT PRIMARY KEY,
+    value TEXT NOT NULL,
+    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+);
+
 -- Index untuk pencarian cepat
 CREATE INDEX IF NOT EXISTS idx_pendaftar_status ON pendaftar(status);
 CREATE INDEX IF NOT EXISTS idx_pendaftar_wa ON pendaftar(no_whatsapp);

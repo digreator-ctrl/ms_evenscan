@@ -102,6 +102,13 @@ export function Pengaturan() {
   // State Profil User yang Sedang Login
   const [currentUser, setCurrentUser] = useState<AdminUser | null>(null);
 
+  // State Kontrol Kuota & Pendaftaran Acara (Khusus Superadmin)
+  const [pendaftaranBuka, setPendaftaranBuka] = useState<boolean>(true);
+  const [loadingKuota, setLoadingKuota] = useState<boolean>(false);
+  const [savingKuota, setSavingKuota] = useState<boolean>(false);
+  const [kuotaUpdatedAt, setKuotaUpdatedAt] = useState<string | null>(null);
+  const [kuotaFeedback, setKuotaFeedback] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
+
   // State Validasi Konfirmasi Keluar (Logout)
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
 
@@ -178,6 +185,66 @@ export function Pengaturan() {
   useEffect(() => {
     fetchProfile();
   }, []);
+
+  useEffect(() => {
+    if (currentUser?.role === 'superadmin') {
+      fetchKuotaSetting();
+    }
+  }, [currentUser]);
+
+  const fetchKuotaSetting = async () => {
+    setLoadingKuota(true);
+    try {
+      const token = localStorage.getItem('token');
+      const res = await fetch(`${API_URL}/api/admin/settings/pendaftaran`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setPendaftaranBuka(Boolean(data.pendaftaran_buka));
+        setKuotaUpdatedAt(data.updated_at || null);
+      }
+    } catch (err) {
+      console.error('Gagal mengambil status kuota:', err);
+    } finally {
+      setLoadingKuota(false);
+    }
+  };
+
+  const handleToggleKuota = async (targetStatus: boolean) => {
+    setSavingKuota(true);
+    setKuotaFeedback(null);
+    try {
+      const token = localStorage.getItem('token');
+      const res = await fetch(`${API_URL}/api/admin/settings/pendaftaran`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ pendaftaran_buka: targetStatus }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data.error || 'Gagal mengubah status pendaftaran');
+      }
+      setPendaftaranBuka(Boolean(data.pendaftaran_buka));
+      setKuotaUpdatedAt(data.updated_at || null);
+      setKuotaFeedback({
+        type: 'success',
+        message: targetStatus
+          ? 'Status berhasil diubah: Kuota Acara DIBUKA (Pendaftaran peserta aktif).'
+          : 'Status berhasil diubah: Kuota Acara DITUTUP (Pendaftaran peserta dinonaktifkan).',
+      });
+    } catch (err: any) {
+      setKuotaFeedback({
+        type: 'error',
+        message: err.message || 'Terjadi kesalahan sistem saat memperbarui status kuota.',
+      });
+    } finally {
+      setSavingKuota(false);
+    }
+  };
 
   useEffect(() => {
     if (currentUser?.role === 'superadmin' && currentSub === 'rbac') {
@@ -2120,6 +2187,229 @@ export function Pengaturan() {
                   </div>
                 )}
               </div>
+            </div>
+          )}
+        </div>
+      </div>
+    );
+  }
+
+  // ==========================================================
+  // VIEW 3: DETAIL SUBMENU KONTROL KUOTA & PENDAFTARAN ACARA
+  // ==========================================================
+  if (currentSub === 'kuota') {
+    if (currentUser?.role !== 'superadmin') {
+      return (
+        <div className="max-w-4xl mx-auto space-y-5 animate-in fade-in duration-150">
+          <div className="flex items-center gap-2 sm:gap-3">
+            <button
+              onClick={backToMenu}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white hover:bg-slate-100 border border-slate-200 text-xs font-bold text-slate-700 shadow-xs transition active:scale-95 cursor-pointer"
+            >
+              <svg className="w-4 h-4 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M15 19l-7-7 7-7" />
+              </svg>
+              <span>Kembali ke Pengaturan</span>
+            </button>
+          </div>
+
+          <div className="bg-white rounded-3xl p-8 border border-amber-200 shadow-xs text-center max-w-lg mx-auto">
+            <div className="w-14 h-14 rounded-2xl bg-amber-50 text-amber-600 flex items-center justify-center mx-auto mb-3 border border-amber-200">
+              <svg className="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 00-2 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+              </svg>
+            </div>
+            <h3 className="text-base font-black text-slate-800 mb-1">Akses Terbatas: Khusus Superadmin</h3>
+            <p className="text-xs text-slate-500 mb-4 leading-relaxed">
+              Akun Anda memiliki role <strong className="text-slate-800">{currentUser?.role}</strong>. Menu kontrol kuota dan penutupan pendaftaran peserta hanya dapat diakses oleh Superadmin.
+            </p>
+            <button
+              onClick={backToMenu}
+              className="px-4 py-2 rounded-xl bg-slate-900 text-white text-xs font-bold shadow-sm transition active:scale-95 cursor-pointer"
+            >
+              Kembali ke Menu Pengaturan
+            </button>
+          </div>
+        </div>
+      );
+    }
+
+    return (
+      <div className="max-w-3xl mx-auto space-y-6 animate-in fade-in duration-150">
+        {/* Tombol Back & Badge Hak Akses */}
+        <div className="flex items-center justify-between gap-3">
+          <button
+            type="button"
+            onClick={backToMenu}
+            className="inline-flex items-center gap-2 px-3.5 py-2 rounded-xl bg-white hover:bg-slate-100 border border-slate-200 text-xs font-bold text-slate-700 shadow-xs transition active:scale-95 cursor-pointer"
+          >
+            <svg className="w-4 h-4 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M15 19l-7-7 7-7" />
+            </svg>
+            <span>Kembali ke Pengaturan</span>
+          </button>
+
+          <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-black bg-purple-100 text-purple-700 border border-purple-200">
+            <span className="w-1.5 h-1.5 rounded-full bg-purple-500"></span>
+            Akses Eksklusif Superadmin
+          </span>
+        </div>
+
+        {/* Header Modul */}
+        <div>
+          <h1 className="text-2xl font-black text-slate-900 tracking-tight">
+            Kontrol Kuota & Pendaftaran Acara
+          </h1>
+          <p className="text-xs text-slate-500 mt-1">
+            Kelola ketersediaan pendaftaran peserta secara langsung. Saat kuota ditutup, tombol "Daftar Sekarang" di portal peserta akan dinonaktifkan dan teks kuota berubah menjadi "Ditutup".
+          </p>
+        </div>
+
+        {/* Feedback Alert */}
+        {kuotaFeedback && (
+          <div
+            className={`p-4 rounded-2xl border text-xs flex items-start gap-3 transition ${
+              kuotaFeedback.type === 'success'
+                ? 'bg-emerald-50 border-emerald-200 text-emerald-800'
+                : 'bg-rose-50 border-rose-200 text-rose-800'
+            }`}
+          >
+            <span className="text-base">{kuotaFeedback.type === 'success' ? '✅' : '⚠️'}</span>
+            <div className="flex-1 font-semibold">{kuotaFeedback.message}</div>
+          </div>
+        )}
+
+        {/* Card Status & Kontrol Utama */}
+        <div className="bg-white rounded-3xl p-6 sm:p-8 border border-slate-200/90 shadow-sm space-y-6">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-6 border-b border-slate-100">
+            <div>
+              <div className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-1">
+                Status Saat Ini
+              </div>
+              <div className="flex items-center gap-3">
+                <span
+                  className={`inline-flex items-center gap-2 px-4 py-1.5 rounded-full text-sm font-black ${
+                    pendaftaranBuka
+                      ? 'bg-emerald-100 text-emerald-800 border border-emerald-200'
+                      : 'bg-rose-100 text-rose-800 border border-rose-200'
+                  }`}
+                >
+                  <span
+                    className={`w-2.5 h-2.5 rounded-full ${
+                      pendaftaranBuka ? 'bg-emerald-500 animate-pulse' : 'bg-rose-500'
+                    }`}
+                  />
+                  <span>{pendaftaranBuka ? 'KUOTA ACARA TERBUKA' : 'KUOTA ACARA DITUTUP'}</span>
+                </span>
+                {loadingKuota && (
+                  <span className="text-xs text-slate-400 animate-pulse">Memuat...</span>
+                )}
+              </div>
+            </div>
+
+            {/* Tombol Aksi Toggle */}
+            <button
+              type="button"
+              disabled={savingKuota || loadingKuota}
+              onClick={() => handleToggleKuota(!pendaftaranBuka)}
+              className={`px-5 py-3 rounded-2xl text-xs sm:text-sm font-bold shadow-md transition-all duration-150 flex items-center justify-center gap-2 cursor-pointer active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed ${
+                pendaftaranBuka
+                  ? 'bg-rose-600 hover:bg-rose-700 text-white shadow-rose-600/20'
+                  : 'bg-emerald-600 hover:bg-emerald-700 text-white shadow-emerald-600/20'
+              }`}
+            >
+              {savingKuota ? (
+                <>
+                  <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                  <span>Menyimpan Perubahan...</span>
+                </>
+              ) : pendaftaranBuka ? (
+                <>
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636" />
+                  </svg>
+                  <span>Tutup Kuota Pendaftaran</span>
+                </>
+              ) : (
+                <>
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M5 13l4 4L19 7" />
+                  </svg>
+                  <span>Buka Kuota Pendaftaran</span>
+                </>
+              )}
+            </button>
+          </div>
+
+          {/* Rincian Efek di Portal Peserta */}
+          <div className="grid sm:grid-cols-2 gap-4">
+            <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200/80 space-y-1.5">
+              <div className="flex items-center gap-2 text-xs font-bold text-slate-700">
+                <span>👥</span>
+                <span>Teks Kartu Kuota Peserta</span>
+              </div>
+              <div className="text-base font-extrabold text-slate-900">
+                {pendaftaranBuka ? 'Terbuka' : 'Ditutup'}
+              </div>
+              <p className="text-[11px] text-slate-500 leading-relaxed">
+                Teks pada card Kuota Acara di beranda portal peserta disesuaikan otomatis secara real-time.
+              </p>
+            </div>
+
+            <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200/80 space-y-1.5">
+              <div className="flex items-center gap-2 text-xs font-bold text-slate-700">
+                <span>🔘</span>
+                <span>Tombol CTA Pendaftaran</span>
+              </div>
+              <div className="text-base font-extrabold text-slate-900">
+                {pendaftaranBuka ? 'Daftar Sekarang (Aktif)' : 'Kuota Acara Ditutup (Nonaktif)'}
+              </div>
+              <p className="text-[11px] text-slate-500 leading-relaxed">
+                Saat ditutup, tombol pendaftaran dikunci dan peserta tidak dapat mengirim formulir pendaftaran baru.
+              </p>
+            </div>
+          </div>
+
+          {/* Simulasi Tampilan Portal Peserta (Live Preview Box) */}
+          <div className="pt-2">
+            <div className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">
+              Pratinjau Langsung Sisi Peserta (Live Preview)
+            </div>
+            <div className="rounded-2xl bg-gradient-to-r from-[#06305d] to-[#08407c] p-5 text-white space-y-4">
+              <div className="flex items-center justify-between text-xs text-sky-200 border-b border-white/10 pb-2">
+                <span>Tampilan Beranda Peserta</span>
+                <span className="font-mono text-[10px]">ms-evenscan-peserta</span>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3 max-w-sm">
+                {/* Preview Stat Card */}
+                <div className="bg-white/10 backdrop-blur-md border border-white/15 rounded-xl p-3">
+                  <div className="text-[10px] text-sky-200 font-medium">👥 KUOTA ACARA</div>
+                  <div className={`text-lg font-black ${pendaftaranBuka ? 'text-white' : 'text-amber-300'}`}>
+                    {pendaftaranBuka ? 'Terbuka' : 'Ditutup'}
+                  </div>
+                </div>
+
+                {/* Preview CTA Button */}
+                <div className="flex items-center">
+                  <div
+                    className={`w-full text-center font-bold px-3 py-2.5 rounded-xl text-xs flex items-center justify-center gap-1.5 transition ${
+                      pendaftaranBuka
+                        ? 'bg-white text-[#07407b] shadow-md'
+                        : 'bg-white/20 text-white/60 border border-white/15 cursor-not-allowed'
+                    }`}
+                  >
+                    <span>{pendaftaranBuka ? 'Daftar Sekarang' : 'Kuota Acara Ditutup'}</span>
+                    <span>{pendaftaranBuka ? '→' : '🔒'}</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {kuotaUpdatedAt && (
+            <div className="text-[11px] text-slate-400 text-right pt-2">
+              Terakhir diperbarui: {new Date(kuotaUpdatedAt).toLocaleString('id-ID')}
             </div>
           )}
         </div>

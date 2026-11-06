@@ -26,6 +26,38 @@ function getPhoneVariants(phone: string): [string, string] {
 }
 
 /**
+ * GET /api/peserta/config
+ * Mengembalikan konfigurasi status kuota & pendaftaran publik
+ */
+pesertaRoutes.get('/config', async (c) => {
+  const db = c.env.DB;
+  if (!db) {
+    return c.json({
+      pendaftaran_buka: true,
+      kuota_status: 'Terbuka',
+    });
+  }
+
+  try {
+    const row = await db
+      .prepare(`SELECT value FROM app_settings WHERE key = 'pendaftaran_buka'`)
+      .first<{ value: string }>();
+
+    const pendaftaran_buka = row ? row.value === 'true' || row.value === '1' : true;
+
+    return c.json({
+      pendaftaran_buka,
+      kuota_status: pendaftaran_buka ? 'Terbuka' : 'Ditutup',
+    });
+  } catch (err) {
+    return c.json({
+      pendaftaran_buka: true,
+      kuota_status: 'Terbuka',
+    });
+  }
+});
+
+/**
  * POST /api/peserta/daftar
  * Menerima formulir pendaftaran + file screenshot bukti
  */
@@ -33,6 +65,24 @@ pesertaRoutes.post('/daftar', validatePendaftaran, async (c) => {
   const db = c.env.DB;
   if (!db) {
     return c.json({ error: 'Database D1 tidak terhubung' }, 500);
+  }
+
+  // Validasi apakah pendaftaran dibuka oleh admin superadmin
+  try {
+    const configRow = await db
+      .prepare(`SELECT value FROM app_settings WHERE key = 'pendaftaran_buka'`)
+      .first<{ value: string }>();
+    if (configRow && (configRow.value === 'false' || configRow.value === '0')) {
+      return c.json(
+        {
+          error: 'Pendaftaran saat ini telah ditutup karena kuota acara telah terpenuhi.',
+          code: 'REGISTRATION_CLOSED',
+        },
+        403
+      );
+    }
+  } catch (err) {
+    // Abaikan jika tabel belum ada atau terjadi kendala query
   }
 
   const storage = new StorageService(c.env.STORAGE);

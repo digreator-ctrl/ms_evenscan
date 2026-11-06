@@ -489,3 +489,88 @@ adminRoutes.delete('/users/:id', async (c) => {
     return c.json({ error: 'Gagal menghapus pengguna: ' + err.message }, 500);
   }
 });
+
+/**
+ * GET /api/admin/settings/pendaftaran
+ * Mendapatkan status buka/tutup pendaftaran peserta (Khusus Superadmin)
+ */
+adminRoutes.get('/settings/pendaftaran', async (c) => {
+  const currentUser = c.get('user');
+  if (!currentUser || currentUser.role !== 'superadmin') {
+    return c.json({ error: 'Akses terbatas hanya untuk Superadmin' }, 403);
+  }
+
+  const db = c.env.DB;
+  if (!db) {
+    return c.json({ error: 'Database tidak terhubung' }, 500);
+  }
+
+  try {
+    const row = await db
+      .prepare(`SELECT value, updated_at FROM app_settings WHERE key = 'pendaftaran_buka'`)
+      .first<{ value: string; updated_at?: string }>();
+
+    const pendaftaran_buka = row ? row.value === 'true' || row.value === '1' : true;
+
+    return c.json({
+      success: true,
+      pendaftaran_buka,
+      updated_at: row?.updated_at || null,
+    });
+  } catch (err: any) {
+    return c.json({
+      success: true,
+      pendaftaran_buka: true,
+      updated_at: null,
+    });
+  }
+});
+
+/**
+ * PATCH /api/admin/settings/pendaftaran
+ * Mengubah status buka/tutup pendaftaran peserta (Khusus Superadmin)
+ */
+adminRoutes.patch('/settings/pendaftaran', async (c) => {
+  const currentUser = c.get('user');
+  if (!currentUser || currentUser.role !== 'superadmin') {
+    return c.json({ error: 'Akses terbatas hanya untuk Superadmin' }, 403);
+  }
+
+  const db = c.env.DB;
+  if (!db) {
+    return c.json({ error: 'Database tidak terhubung' }, 500);
+  }
+
+  const body = await c.req.json().catch(() => ({}));
+  const pendaftaran_buka = Boolean(body.pendaftaran_buka);
+
+  try {
+    await db
+      .prepare(
+        `CREATE TABLE IF NOT EXISTS app_settings (
+          key TEXT PRIMARY KEY,
+          value TEXT NOT NULL,
+          updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+        )`
+      )
+      .run();
+
+    await db
+      .prepare(
+        `INSERT INTO app_settings (key, value, updated_at)
+         VALUES ('pendaftaran_buka', ?, CURRENT_TIMESTAMP)
+         ON CONFLICT(key) DO UPDATE SET value = excluded.value, updated_at = CURRENT_TIMESTAMP`
+      )
+      .bind(pendaftaran_buka ? 'true' : 'false')
+      .run();
+
+    return c.json({
+      success: true,
+      message: `Pendaftaran berhasil ${pendaftaran_buka ? 'dibuka' : 'ditutup'}`,
+      pendaftaran_buka,
+      updated_at: new Date().toISOString(),
+    });
+  } catch (err: any) {
+    return c.json({ error: 'Gagal memperbarui status pendaftaran: ' + err.message }, 500);
+  }
+});
