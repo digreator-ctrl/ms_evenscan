@@ -125,7 +125,7 @@ adminRoutes.get('/pendaftar', async (c) => {
   const search = c.req.query('search')?.trim();
 
   try {
-    let sql = `SELECT id, nama, email, no_whatsapp, instansi, jenis_kelamin, nip, domisili, alasan, screenshot_url, qr_code_url, qr_token, status, alasan_tolak, wa_terkirim, created_at, confirmed_at, attended_at FROM pendaftar WHERE 1=1`;
+    let sql = `SELECT id, nama, email, no_whatsapp, instansi, jenis_kelamin, nip, domisili, alasan, screenshot_url, qr_code_url, qr_token, status, alasan_tolak, wa_terkirim, created_at, confirmed_at, attended_at, confirmed_by, wa_sent_by FROM pendaftar WHERE 1=1`;
     const params: any[] = [];
 
     if (status && status !== 'semua') {
@@ -217,16 +217,20 @@ adminRoutes.patch('/pendaftar/:id/konfirmasi', async (c) => {
     const qrToken = pendaftar.qr_token || 'qr_' + nanoid(12);
     const qrCodeUrl = `/api/peserta/qr/${qrToken}`;
 
+    const user = c.get('user');
+    const confirmedBy = user?.nama || user?.username || 'Panitia';
+
     await db
       .prepare(
         `UPDATE pendaftar
          SET status = 'dikonfirmasi',
              qr_token = ?,
              qr_code_url = ?,
-             confirmed_at = CURRENT_TIMESTAMP
+             confirmed_at = CURRENT_TIMESTAMP,
+             confirmed_by = ?
          WHERE id = ?`
       )
-      .bind(qrToken, qrCodeUrl, id)
+      .bind(qrToken, qrCodeUrl, confirmedBy, id)
       .run();
 
     // Buat link wa.me
@@ -291,9 +295,12 @@ adminRoutes.patch('/pendaftar/:id/mark-wa-sent', async (c) => {
   const id = c.req.param('id');
 
   try {
+    const user = c.get('user');
+    const waSentBy = user?.nama || user?.username || 'Panitia';
+
     await db
-      .prepare(`UPDATE pendaftar SET wa_terkirim = 1 WHERE id = ?`)
-      .bind(id)
+      .prepare(`UPDATE pendaftar SET wa_terkirim = 1, wa_sent_by = ? WHERE id = ?`)
+      .bind(waSentBy, id)
       .run();
 
     return c.json({ success: true });

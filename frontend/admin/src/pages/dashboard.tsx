@@ -96,12 +96,9 @@ export function Dashboard() {
       {/* TOTAL PENDAFTAR KESELURUHAN                              */}
       {/* ======================================================== */}
       <section className="space-y-2">
-        <div className="flex items-center justify-between">
-          <h2 className="text-xs font-bold uppercase tracking-wider text-slate-500">
-            Total Pendaftar Keseluruhan
-          </h2>
-          <span className="text-[11px] text-slate-400 font-medium">Semua data yang masuk</span>
-        </div>
+        <h2 className="text-xs font-bold uppercase tracking-wider text-slate-500">
+          Total Pendaftar Keseluruhan
+        </h2>
 
         <div className="bg-gradient-to-br from-[#06305d] via-[#08407c] to-[#0a529b] text-white rounded-2xl sm:rounded-3xl p-5 sm:p-6 shadow-md relative overflow-hidden">
           <div className="absolute right-0 top-0 translate-x-4 -translate-y-4 w-40 h-40 bg-white/5 rounded-full blur-2xl pointer-events-none" />
@@ -127,17 +124,9 @@ export function Dashboard() {
       {/* STATUS VERIFIKASI BERKAS                                 */}
       {/* ======================================================== */}
       <section className="space-y-2.5">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1">
-          <h2 className="text-xs font-bold uppercase tracking-wider text-slate-500">
-            Status Verifikasi Berkas
-          </h2>
-          <div className="inline-flex items-center gap-1.5 text-[11px] font-semibold text-slate-500 bg-slate-100 px-2.5 py-0.5 rounded-full">
-            <span>ℹ️ Akumulasi:</span>
-            <span className="font-mono text-slate-800">
-              {totalMenunggu} + {totalDikonfirmasi} + {totalDitolak} = {totalPendaftar} Peserta (100% Sesuai)
-            </span>
-          </div>
-        </div>
+        <h2 className="text-xs font-bold uppercase tracking-wider text-slate-500">
+          Status Verifikasi Berkas
+        </h2>
 
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4">
           {/* 1. Menunggu Verifikasi */}
@@ -191,14 +180,9 @@ export function Dashboard() {
       {/* PRESENSI KEHADIRAN DI LOKASI                             */}
       {/* ======================================================== */}
       <section className="space-y-2.5">
-        <div className="flex items-center justify-between">
-          <h2 className="text-xs font-bold uppercase tracking-wider text-slate-500">
-            Presensi Kehadiran di Lokasi
-          </h2>
-          <span className="text-[11px] text-slate-400 font-medium">
-            Dari {totalDikonfirmasi} peserta dikonfirmasi
-          </span>
-        </div>
+        <h2 className="text-xs font-bold uppercase tracking-wider text-slate-500">
+          Presensi Kehadiran di Lokasi
+        </h2>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
           {/* Sudah Hadir */}

@@ -87,12 +87,13 @@ class MockD1Database {
                 attended_at: null,
               });
             } else if (normalized.includes("SET status = 'dikonfirmasi'")) {
-              const [qrToken, qrCodeUrl, id] = params;
+              const [qrToken, qrCodeUrl, confirmedBy, id] = params;
               const target = this.pendaftar.find((p) => p.id === id);
               if (target) {
                 target.status = 'dikonfirmasi';
                 target.qr_token = qrToken;
                 target.qr_code_url = qrCodeUrl;
+                target.confirmed_by = confirmedBy;
                 target.confirmed_at = new Date().toISOString();
               }
             } else if (normalized.includes("SET status = 'hadir'")) {
@@ -110,9 +111,12 @@ class MockD1Database {
                 target.alasan_tolak = alasan;
               }
             } else if (normalized.includes('SET wa_terkirim = 1')) {
-              const [id] = params;
+              const [waSentBy, id] = params;
               const target = this.pendaftar.find((p) => p.id === id);
-              if (target) target.wa_terkirim = 1;
+              if (target) {
+                target.wa_terkirim = 1;
+                target.wa_sent_by = waSentBy;
+              }
             } else if (normalized.includes('DELETE FROM pendaftar WHERE id = ?')) {
               const [id] = params;
               this.pendaftar = this.pendaftar.filter((p) => p.id !== id);

@@ -22,6 +22,8 @@ interface Pendaftar {
   created_at: string;
   confirmed_at?: string;
   attended_at?: string;
+  confirmed_by?: string;
+  wa_sent_by?: string;
 }
 
 function getNIP(p: Pendaftar): string {
@@ -36,17 +38,35 @@ function getNIP(p: Pendaftar): string {
 function formatTanggal(isoString?: string): string {
   if (!isoString) return '-';
   try {
-    const d = new Date(isoString);
+    const s = String(isoString).trim();
+    const hasTz = /(?:Z|[+-]\d{2}:?\d{2})$/i.test(s);
+    const iso = hasTz ? s : s.replace(' ', 'T') + 'Z';
+    const d = new Date(iso);
+    if (isNaN(d.getTime())) return isoString;
     return d.toLocaleString('id-ID', {
       day: 'numeric',
       month: 'short',
       year: 'numeric',
       hour: '2-digit',
       minute: '2-digit',
+      timeZone: 'Asia/Jakarta',
     });
   } catch {
     return isoString;
   }
+}
+
+function getJenisKelamin(p: Pendaftar): string {
+  const jk = (p.jenis_kelamin || '').trim().toLowerCase();
+  if (jk === 'ikhwan') return 'Ikhwan';
+  if (jk === 'akhwat') return 'Akhwat';
+  const nip = getNIP(p).toUpperCase();
+  if (nip.startsWith('ARN')) return 'Ikhwan';
+  if (nip.startsWith('ART')) return 'Akhwat';
+  const instansi = (p.instansi || '').toLowerCase();
+  if (instansi.includes('ikhwan')) return 'Ikhwan';
+  if (instansi.includes('akhwat')) return 'Akhwat';
+  return '-';
 }
 
 export function Verifikasi() {
@@ -58,6 +78,20 @@ export function Verifikasi() {
   const [search, setSearch] = useState('');
   const [loading, setLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
+
+  // State Modal Popup Aplikasi (bukan dialog bawaan browser)
+  const [waModal, setWaModal] = useState<{ waUrl: string; nama: string } | null>(null);
+  const [tolakModal, setTolakModal] = useState<Pendaftar | null>(null);
+  const [tolakAlasan, setTolakAlasan] = useState('');
+  const [hapusModal, setHapusModal] = useState<Pendaftar | null>(null);
+  const [toast, setToast] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
+
+  // Notifikasi toast otomatis hilang
+  useEffect(() => {
+    if (!toast) return;
+    const t = setTimeout(() => setToast(null), 3500);
+    return () => clearTimeout(t);
+  }, [toast]);
 
   // Auto-refresh: mount + polling interval berkala (setiap 5 detik) + saat tab browser difokuskan
   useEffect(() => {
@@ -102,28 +136,45 @@ export function Verifikasi() {
         method: 'PATCH',
         headers: { Authorization: `Bearer ${token}` },
       });
+      const data = await res.json().catch(() => ({}));
       if (res.ok) {
-        const data = await res.json();
         await fetchPendaftar(true);
-        if (data.wa_url && confirm('Peserta berhasil dikonfirmasi! Buka WhatsApp untuk mengirim QR ke peserta sekarang?')) {
-          window.open(data.wa_url, '_blank');
+        if (data.wa_url) {
+          const p = pendaftar.find((x) => x.id === id);
+          setWaModal({ waUrl: data.wa_url, nama: p?.nama || 'peserta' });
+        } else {
+          setToast({ type: 'success', message: 'Berkas berhasil disetujui (ACC).' });
         }
+      } else {
+        setToast({ type: 'error', message: data.error || 'Gagal mengonfirmasi berkas.' });
       }
     } catch (err) {
-      console.error('Konfirmasi gagal:', err);
+      setToast({ type: 'error', message: 'Terjadi kesalahan saat mengonfirmasi berkas.' });
     } finally {
       setActionLoading(null);
     }
   };
 
-  const handleTolak = async (id: string) => {
-    const alasan = prompt('Masukkan alasan penolakan berkas:');
-    if (alasan === null) return;
+  const handleTolak = (id: string) => {
+    const p = pendaftar.find((x) => x.id === id);
+    if (p) {
+      setTolakAlasan('');
+      setTolakModal(p);
+    }
+  };
 
-    setActionLoading(id);
+  const submitTolak = async () => {
+    if (!tolakModal) return;
+    const alasan = tolakAlasan.trim();
+    if (!alasan) {
+      setToast({ type: 'error', message: 'Alasan penolakan wajib diisi.' });
+      return;
+    }
+
+    setActionLoading(tolakModal.id);
     try {
       const token = localStorage.getItem('token');
-      const res = await fetch(`${API_URL}/api/admin/pendaftar/${id}/tolak`, {
+      const res = await fetch(`${API_URL}/api/admin/pendaftar/${tolakModal.id}/tolak`, {
         method: 'PATCH',
         headers: {
           Authorization: `Bearer ${token}`,
@@ -131,41 +182,50 @@ export function Verifikasi() {
         },
         body: JSON.stringify({ alasan }),
       });
+      const data = await res.json().catch(() => ({}));
       if (res.ok) {
         await fetchPendaftar(true);
+        setToast({ type: 'success', message: 'Berkas berhasil ditolak.' });
+      } else {
+        setToast({ type: 'error', message: data.error || 'Gagal menolak berkas.' });
       }
+      setTolakModal(null);
+      setTolakAlasan('');
     } catch (err) {
-      console.error('Tolak gagal:', err);
+      setToast({ type: 'error', message: 'Terjadi kesalahan saat menolak berkas.' });
     } finally {
       setActionLoading(null);
     }
   };
 
-  const handleHapus = async (id: string, nama: string) => {
-    if (!confirm(`Hapus pendaftar "${nama}"? Data yang dihapus tidak dapat dipulihkan.`)) {
-      return;
-    }
+  const handleHapus = (id: string, nama: string) => {
+    const p = pendaftar.find((x) => x.id === id) || ({ id, nama } as Pendaftar);
+    setHapusModal(p);
+  };
 
-    setActionLoading(id);
+  const confirmHapus = async () => {
+    if (!hapusModal) return;
+
+    setActionLoading(hapusModal.id);
     try {
       const token = localStorage.getItem('token');
-      const res = await fetch(`${API_URL}/api/admin/pendaftar/${id}`, {
+      const res = await fetch(`${API_URL}/api/admin/pendaftar/${hapusModal.id}`, {
         method: 'DELETE',
         headers: { Authorization: `Bearer ${token}` },
       });
+      const data = await res.json().catch(() => ({}));
       if (res.ok) {
         await fetchPendaftar(true);
-        // Kembali ke halaman daftar verifikasi
         setSearchParams({});
+        setToast({ type: 'success', message: `Data "${hapusModal.nama}" berhasil dihapus.` });
       } else {
-        const data = await res.json().catch(() => ({}));
-        alert(data.error || 'Gagal menghapus pendaftar');
+        setToast({ type: 'error', message: data.error || 'Gagal menghapus pendaftar.' });
       }
     } catch (err) {
-      console.error('Hapus gagal:', err);
-      alert('Terjadi kesalahan saat menghapus data.');
+      setToast({ type: 'error', message: 'Terjadi kesalahan saat menghapus data.' });
     } finally {
       setActionLoading(null);
+      setHapusModal(null);
     }
   };
 
@@ -228,6 +288,50 @@ _Panitia Muslim Scene Event_`;
     }
   };
 
+  // Ekspor rekapan pendaftar ke file CSV (untuk keperluan cetak)
+  const handleExportCSV = () => {
+    if (filtered.length === 0) {
+      setToast({ type: 'error', message: 'Tidak ada data pendaftar untuk diekspor.' });
+      return;
+    }
+
+    const headers = [
+      'Nama Lengkap',
+      'NIP',
+      'No WA',
+      'Jenis',
+      'Alasan Motivasi',
+      'Waktu Daftar',
+      'Waktu Verifikasi',
+      'Waktu Kehadiran',
+      'Petugas ACC',
+      'Petugas Kirim WA',
+    ];
+
+    const rows = filtered.map((p) => [
+      `"${(p.nama || '').replace(/"/g, '""')}"`,
+      `"${getNIP(p)}"`,
+      `'${p.no_whatsapp}`,
+      `"${getJenisKelamin(p)}"`,
+      `"${(p.alasan || '-').replace(/"/g, '""')}"`,
+      `"${formatTanggal(p.created_at)}"`,
+      `"${formatTanggal(p.confirmed_at)}"`,
+      `"${formatTanggal(p.attended_at)}"`,
+      `"${(p.confirmed_by || '-').replace(/"/g, '""')}"`,
+      `"${(p.wa_sent_by || '-').replace(/"/g, '""')}"`,
+    ]);
+
+    const csvContent =
+      'data:text/csv;charset=utf-8,\uFEFF' + [headers.join(','), ...rows.map((r) => r.join(','))].join('\n');
+    const encodedUri = encodeURI(csvContent);
+    const link = document.createElement('a');
+    link.setAttribute('href', encodedUri);
+    link.setAttribute('download', `rekap-verifikasi-${new Date().toISOString().slice(0, 10)}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
   const statusBadge = (status: string) => {
     const styles: Record<string, string> = {
       menunggu: 'bg-amber-100 text-amber-800 border border-amber-200',
@@ -239,6 +343,177 @@ _Panitia Muslim Scene Event_`;
   };
 
   const selectedPendaftar = pendaftar.find((p) => p.id === detailId) || null;
+
+  // Render seluruh modal popup aplikasi (bukan dialog bawaan browser)
+  const renderModals = () => (
+    <>
+      {/* Modal Sukses ACC: Tawaran Buka WhatsApp */}
+      {waModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-xs p-4">
+          <div className="bg-white rounded-3xl max-w-sm w-full p-6 shadow-2xl border border-emerald-100 text-center">
+            <div className="w-14 h-14 rounded-2xl bg-emerald-50 text-emerald-600 border border-emerald-200 flex items-center justify-center mx-auto mb-4">
+              <svg className="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M5 13l4 4L19 7" />
+              </svg>
+            </div>
+            <h3 className="text-base font-black text-slate-900 mb-1.5">Berkas Berhasil Disetujui!</h3>
+            <p className="text-xs text-slate-500 leading-relaxed mb-6">
+              Peserta <strong className="text-slate-800">{waModal.nama}</strong> berhasil dikonfirmasi. Buka WhatsApp untuk
+              mengirim tiket QR kepada peserta sekarang?
+            </p>
+            <div className="flex gap-2.5">
+              <button
+                type="button"
+                onClick={() => setWaModal(null)}
+                className="flex-1 py-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold transition active:scale-95 cursor-pointer"
+              >
+                Nanti
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  window.open(waModal.waUrl, '_blank');
+                  setWaModal(null);
+                }}
+                className="flex-1 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold transition shadow-sm active:scale-95 cursor-pointer"
+              >
+                Buka WhatsApp
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal Tolak Berkas (Input Alasan) */}
+      {tolakModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-xs p-4">
+          <div className="bg-white rounded-3xl max-w-md w-full p-6 shadow-2xl border border-rose-100">
+            <div className="flex items-center gap-3 mb-4">
+              <div className="w-10 h-10 rounded-xl bg-rose-50 text-rose-600 border border-rose-200 flex items-center justify-center shrink-0">
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </div>
+              <div className="min-w-0">
+                <h3 className="text-base font-black text-slate-900">Tolak Berkas</h3>
+                <p className="text-xs text-slate-500 truncate">
+                  Peserta: <span className="font-bold text-slate-700">{tolakModal.nama}</span>
+                </p>
+              </div>
+            </div>
+
+            <label className="block text-xs font-bold text-slate-700 mb-1.5">Alasan Penolakan</label>
+            <textarea
+              rows={3}
+              value={tolakAlasan}
+              onChange={(e) => setTolakAlasan(e.target.value)}
+              placeholder="Tuliskan alasan penolakan berkas..."
+              className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-rose-500/20 focus:border-rose-500 resize-none"
+            />
+
+            <div className="flex gap-2.5 mt-4">
+              <button
+                type="button"
+                onClick={() => {
+                  setTolakModal(null);
+                  setTolakAlasan('');
+                }}
+                className="flex-1 py-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold transition active:scale-95 cursor-pointer"
+              >
+                Batal
+              </button>
+              <button
+                type="button"
+                onClick={submitTolak}
+                disabled={actionLoading === tolakModal.id}
+                className="flex-1 py-2.5 rounded-xl bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold transition shadow-sm active:scale-95 disabled:opacity-50 cursor-pointer"
+              >
+                Tolak Berkas
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal Konfirmasi Hapus Data */}
+      {hapusModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-xs p-4">
+          <div className="bg-white rounded-3xl max-w-sm w-full p-6 shadow-2xl border border-slate-100 text-center">
+            <div className="w-14 h-14 rounded-2xl bg-rose-50 text-rose-600 border border-rose-200 flex items-center justify-center mx-auto mb-4">
+              <svg className="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth="2"
+                  d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
+                />
+              </svg>
+            </div>
+            <h3 className="text-base font-black text-slate-900 mb-1.5">Hapus Pendaftar?</h3>
+            <p className="text-xs text-slate-500 leading-relaxed mb-6">
+              Apakah Anda yakin ingin menghapus data <strong className="text-slate-800">{hapusModal.nama}</strong>? Data yang
+              dihapus tidak dapat dipulihkan.
+            </p>
+            <div className="flex gap-2.5">
+              <button
+                type="button"
+                onClick={() => setHapusModal(null)}
+                className="flex-1 py-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold transition active:scale-95 cursor-pointer"
+              >
+                Batal
+              </button>
+              <button
+                type="button"
+                onClick={confirmHapus}
+                disabled={actionLoading === hapusModal.id}
+                className="flex-1 py-2.5 rounded-xl bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold transition shadow-sm active:scale-95 disabled:opacity-50 inline-flex items-center justify-center gap-1.5 cursor-pointer"
+              >
+                {actionLoading === hapusModal.id ? 'Menghapus...' : 'Ya, Hapus'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Toast Notifikasi (Sukses / Gagal) */}
+      {toast && (
+        <div className="fixed top-6 inset-x-0 z-50 flex justify-center px-4 pointer-events-none">
+          <div
+            className={`pointer-events-auto w-full max-w-sm rounded-2xl border shadow-xl shadow-slate-900/10 p-4 flex items-start gap-3 backdrop-blur-sm ${
+              toast.type === 'success' ? 'bg-emerald-50/95 border-emerald-200' : 'bg-rose-50/95 border-rose-200'
+            }`}
+          >
+            <div
+              className={`w-8 h-8 rounded-xl flex items-center justify-center shrink-0 text-white ${
+                toast.type === 'success' ? 'bg-emerald-500' : 'bg-rose-500'
+              }`}
+            >
+              {toast.type === 'success' ? (
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M5 13l4 4L19 7" />
+                </svg>
+              ) : (
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth="2"
+                    d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"
+                  />
+                </svg>
+              )}
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className={`text-sm font-black ${toast.type === 'success' ? 'text-emerald-900' : 'text-rose-900'}`}>
+                {toast.type === 'success' ? 'Berhasil' : 'Gagal'}
+              </p>
+              <p className="text-xs text-slate-600 mt-0.5 leading-relaxed">{toast.message}</p>
+            </div>
+          </div>
+        </div>
+      )}
+    </>
+  );
 
   // =========================================================================
   // VIEW: HALAMAN PENUH DETAIL PESERTA & BERKAS
@@ -576,6 +851,8 @@ _Panitia Muslim Scene Event_`;
             </button>
           </div>
         </div>
+
+        {renderModals()}
       </div>
     );
   }
@@ -598,9 +875,23 @@ _Panitia Muslim Scene Event_`;
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-black text-slate-900 tracking-tight">Verifikasi Pendaftar</h1>
-        <p className="text-sm text-slate-500">Tinjau tangkapan layar bukti peserta dan konfirmasi kehadiran.</p>
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div>
+          <h1 className="text-2xl font-black text-slate-900 tracking-tight">Verifikasi Pendaftar</h1>
+          <p className="text-sm text-slate-500">Tinjau tangkapan layar bukti peserta dan konfirmasi kehadiran.</p>
+        </div>
+
+        <button
+          type="button"
+          onClick={handleExportCSV}
+          className="inline-flex items-center gap-1.5 px-4 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold transition shadow-sm active:scale-95 cursor-pointer shrink-0"
+          title="Download CSV Rekapan Verifikasi"
+        >
+          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+          </svg>
+          <span>Ekspor CSV</span>
+        </button>
       </div>
 
       {/* SEARCH & FILTER BAR SEJAJAR */}
@@ -830,6 +1121,8 @@ _Panitia Muslim Scene Event_`;
           </>
         )}
       </div>
+
+      {renderModals()}
     </div>
   );
 }

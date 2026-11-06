@@ -221,7 +221,60 @@ import Logo from "../components/Logo.astro";
     </section>
   </div>
 
+  <!-- Modal Popup Permintaan Maaf: Pendaftaran Telah Ditutup -->
+  <div
+    id="modalKuotaTutup"
+    class="hidden fixed inset-0 z-50 items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4"
+    role="dialog"
+    aria-modal="true"
+    aria-labelledby="modalKuotaTutupTitle"
+  >
+    <div class="bg-white rounded-3xl max-w-sm w-full p-6 shadow-2xl border border-slate-100 text-center">
+      <div class="w-14 h-14 rounded-2xl bg-rose-50 text-rose-600 border border-rose-200 flex items-center justify-center mx-auto mb-4">
+        <svg class="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            stroke-width="2"
+            d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"
+          ></path>
+        </svg>
+      </div>
+
+      <h3 id="modalKuotaTutupTitle" class="text-base font-black text-slate-900 mb-1.5">
+        Mohon Maaf, Pendaftaran Telah Ditutup
+      </h3>
+      <p class="text-xs text-slate-500 leading-relaxed mb-6">
+        Kuota acara saat ini sudah terpenuhi sehingga pendaftaran peserta ditutup untuk sementara. Silakan pantau kembali portal resmi Muslim Scene untuk informasi pembukaan kuota berikutnya.
+      </p>
+
+      <button
+        id="btnTutupModal"
+        type="button"
+        class="w-full py-2.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold transition shadow-sm active:scale-95 cursor-pointer"
+      >
+        Mengerti
+      </button>
+    </div>
+  </div>
+
   <script>
+    let isBuka = true;
+
+    function showModalKuotaTutup() {
+      const modal = document.getElementById('modalKuotaTutup');
+      if (!modal) return;
+      modal.classList.remove('hidden');
+      modal.classList.add('flex');
+    }
+
+    function hideModalKuotaTutup() {
+      const modal = document.getElementById('modalKuotaTutup');
+      if (!modal) return;
+      modal.classList.add('hidden');
+      modal.classList.remove('flex');
+    }
+
     function updateKuotaStatus() {
       const API_URL = import.meta.env.PUBLIC_API_URL || 'http://localhost:8787';
       const kuotaEl = document.getElementById('kuotaStatus');
@@ -237,24 +290,22 @@ import Logo from "../components/Logo.astro";
           return res.json();
         })
         .then((data: any) => {
-          const isBuka = data.pendaftaran_buka ?? true;
+          isBuka = data.pendaftaran_buka ?? true;
           if (!isBuka) {
             kuotaEl.textContent = 'Ditutup';
             kuotaEl.classList.add('text-amber-300');
             if (btnText) btnText.textContent = 'Kuota Acara Ditutup';
             if (btnIcon) btnIcon.textContent = '🔒';
             btnDaftar.removeAttribute('href');
-            btnDaftar.setAttribute('aria-disabled', 'true');
             btnDaftar.classList.remove('bg-white', 'hover:bg-sky-50', 'text-[#07407b]', 'shadow-md');
-            btnDaftar.classList.add('bg-white/20', 'text-white/60', 'cursor-not-allowed', 'pointer-events-none', 'border', 'border-white/15');
+            btnDaftar.classList.add('bg-white/20', 'text-white/60', 'border', 'border-white/15', 'cursor-pointer');
           } else {
             kuotaEl.textContent = 'Terbuka';
             kuotaEl.classList.remove('text-amber-300');
             if (btnText) btnText.textContent = 'Daftar Sekarang';
             if (btnIcon) btnIcon.textContent = '→';
             btnDaftar.setAttribute('href', '/daftar');
-            btnDaftar.removeAttribute('aria-disabled');
-            btnDaftar.classList.remove('bg-white/20', 'text-white/60', 'cursor-not-allowed', 'pointer-events-none', 'border', 'border-white/15');
+            btnDaftar.classList.remove('bg-white/20', 'text-white/60', 'border', 'border-white/15', 'cursor-pointer');
             btnDaftar.classList.add('bg-white', 'hover:bg-sky-50', 'text-[#07407b]', 'shadow-md');
           }
         })
@@ -262,6 +313,34 @@ import Logo from "../components/Logo.astro";
           console.warn('Gagal memuat status kuota:', err);
         });
     }
+
+    // Delegasi event klik (terdaftar sekali di scope module agar tidak terjadi duplikasi listener)
+    document.addEventListener('click', (e) => {
+      const target = e.target as HTMLElement;
+
+      if (target.closest('#btnDaftar')) {
+        if (!isBuka) {
+          e.preventDefault();
+          showModalKuotaTutup();
+        }
+        return;
+      }
+
+      if (target.closest('#btnTutupModal')) {
+        hideModalKuotaTutup();
+        return;
+      }
+
+      if (target.id === 'modalKuotaTutup') {
+        hideModalKuotaTutup();
+      }
+    });
+
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape') {
+        hideModalKuotaTutup();
+      }
+    });
 
     document.addEventListener('astro:page-load', updateKuotaStatus);
     if (document.readyState === 'loading') {

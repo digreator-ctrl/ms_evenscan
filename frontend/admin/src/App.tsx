@@ -6,6 +6,7 @@ import { Verifikasi } from './pages/verifikasi';
 import { Scanner } from './pages/scanner';
 import { Dashboard } from './pages/dashboard';
 import { RiwayatScan } from './pages/riwayat-scan';
+import { RiwayatDetail } from './pages/riwayat-detail';
 import { Pengaturan } from './pages/pengaturan';
 import { Layout } from './components/Layout';
 
@@ -28,6 +29,7 @@ function App() {
           <Route element={<Layout />}>
             <Route path="/" element={<Dashboard />} />
             <Route path="/riwayat-scan" element={<RiwayatScan />} />
+            <Route path="/riwayat-scan/:id" element={<RiwayatDetail />} />
             <Route path="/verifikasi" element={<Verifikasi />} />
             <Route path="/scanner" element={<Scanner />} />
             <Route path="/pengaturan" element={<Pengaturan />} />

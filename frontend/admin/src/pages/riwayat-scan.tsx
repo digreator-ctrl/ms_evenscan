@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo } from 'react';
+import { useNavigate } from 'react-router-dom';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8787';
 
@@ -32,17 +33,26 @@ function getNIP(item: PesertaHadir): string {
   return '-';
 }
 
+// Normalisasi timestamp DATETIME (UTC tanpa zona) agar diinterpretasikan benar sebagai UTC
+function toIsoUTC(value: string): string {
+  const s = value.trim();
+  const hasTz = /(?:Z|[+-]\d{2}:?\d{2})$/i.test(s);
+  return hasTz ? s : s.replace(' ', 'T') + 'Z';
+}
+
 function getAttendedTime(item: PesertaHadir): number {
   const t = item.attended_at || item.confirmed_at || item.created_at;
-  return t ? new Date(t).getTime() : 0;
+  if (!t) return 0;
+  const time = new Date(toIsoUTC(t)).getTime();
+  return isNaN(time) ? 0 : time;
 }
 
 export function RiwayatScan() {
+  const navigate = useNavigate();
   const [data, setData] = useState<PesertaHadir[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [sortBy, setSortBy] = useState<'newest' | 'oldest' | 'name_asc' | 'name_desc'>('newest');
-  const [selectedItem, setSelectedItem] = useState<PesertaHadir | null>(null);
 
   // Ambil data pendaftar (hanya data dengan status 'hadir' yang ditampilkan di riwayat scan)
   const fetchRiwayat = async (silent = false) => {
@@ -80,17 +90,19 @@ export function RiwayatScan() {
     };
   }, []);
 
-  // Format tanggal & jam bahasa Indonesia
+  // Format tanggal & jam bahasa Indonesia (WIB) - timestamp DB (UTC) dikonversi ke Asia/Jakarta
   const formatDateTime = (dateStr?: string) => {
     if (!dateStr) return '-';
     try {
-      const d = new Date(dateStr);
+      const d = new Date(toIsoUTC(dateStr));
+      if (isNaN(d.getTime())) return dateStr;
       return new Intl.DateTimeFormat('id-ID', {
         day: 'numeric',
         month: 'short',
         year: 'numeric',
         hour: '2-digit',
         minute: '2-digit',
+        timeZone: 'Asia/Jakarta',
       }).format(d);
     } catch {
       return dateStr;
@@ -272,45 +284,29 @@ export function RiwayatScan() {
         <div className="space-y-4">
           {/* 1. MOBILE CARD VIEW (Layar HP di bawah md) */}
           <div className="md:hidden space-y-2.5">
-            {sortedAndFilteredData.map((item, index) => (
+            {sortedAndFilteredData.map((item) => (
               <div
                 key={item.id}
-                onClick={() => setSelectedItem(item)}
+                onClick={() => navigate(`/riwayat-scan/${item.id}`)}
                 className="bg-white rounded-2xl p-3.5 border border-slate-200 shadow-xs active:bg-slate-50 transition cursor-pointer"
               >
-                <div className="flex items-start justify-between gap-2.5 mb-2">
+                <div className="flex items-start justify-between gap-2.5">
                   <div className="min-w-0 flex-1">
-                    <div className="flex items-center gap-2">
-                      <span className="w-5 h-5 rounded-full bg-slate-100 text-slate-500 text-[10px] font-bold flex items-center justify-center shrink-0">
-                        {index + 1}
-                      </span>
-                      <h4 className="font-bold text-slate-900 text-sm leading-tight truncate">{item.nama}</h4>
-                    </div>
-                    <p className="text-xs text-slate-500 font-mono mt-0.5 pl-7">
+                    <h4 className="font-bold text-slate-900 text-sm leading-tight truncate">{item.nama}</h4>
+                    <p className="text-xs text-slate-500 font-mono mt-0.5">
                       NIP: <span className="font-bold text-slate-700">{getNIP(item)}</span>
                     </p>
                   </div>
 
                   <span className="inline-block px-2.5 py-0.5 rounded-full text-[10px] font-bold shrink-0 bg-blue-100 text-blue-800 border border-blue-200">
-                    ✓ Hadir (Scan)
+                    ✓ Hadir
                   </span>
                 </div>
 
-                <div className="space-y-1 text-xs text-slate-600 pl-7 border-t border-slate-100 pt-2">
-                  <div className="flex items-center justify-between text-[11px]">
-                    <span className="text-slate-400">Waktu Scan Hadir:</span>
-                    <span className="font-semibold text-slate-800">{formatDateTime(item.attended_at)}</span>
-                  </div>
-
-                  <div className="flex items-center justify-between pt-1">
-                    <span className="font-mono text-[10px] bg-slate-100 px-2 py-0.5 rounded text-slate-600 border border-slate-200">
-                      {item.qr_token || '-'}
-                    </span>
-
-                    <span className="text-[11px] text-[#06305d] font-semibold flex items-center gap-1">
-                      Lihat Detail →
-                    </span>
-                  </div>
+                <div className="flex items-center justify-end text-[11px] text-[#06305d] font-semibold mt-2 border-t border-slate-100 pt-2">
+                  <span className="flex items-center gap-1">
+                    Lihat Detail <span>→</span>
+                  </span>
                 </div>
               </div>
             ))}
@@ -323,199 +319,36 @@ export function RiwayatScan() {
                 <thead>
                   <tr className="bg-slate-50/80 border-b border-slate-200 text-[11px] font-bold uppercase tracking-wider text-slate-500">
                     <th className="py-3 px-4 w-12 text-center">No</th>
-                    <th className="py-3 px-4">Waktu Scan Hadir</th>
                     <th className="py-3 px-4">Nama Peserta</th>
                     <th className="py-3 px-4">NIP</th>
-                    <th className="py-3 px-4">Instansi</th>
-                    <th className="py-3 px-4">No. WhatsApp</th>
-                    <th className="py-3 px-4">Token QR</th>
-                    <th className="py-3 px-4 text-center">Status</th>
-                    <th className="py-3 px-4 text-right">Aksi</th>
+                    <th className="py-3 px-4 text-center">Status Kehadiran</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100 text-xs">
                   {sortedAndFilteredData.map((item, index) => (
                     <tr
                       key={item.id}
-                      onClick={() => setSelectedItem(item)}
+                      onClick={() => navigate(`/riwayat-scan/${item.id}`)}
                       className="hover:bg-slate-50/70 cursor-pointer transition duration-150"
                     >
                       <td className="py-3 px-4 text-center text-slate-400 font-mono font-medium">
                         {index + 1}
                       </td>
                       <td className="py-3 px-4">
-                        <div className="font-semibold text-slate-800">
-                          {formatDateTime(item.attended_at)}
-                        </div>
-                        <div className="text-[10px] text-blue-600 font-medium mt-0.5">
-                          Scan Presensi Meja Masuk
-                        </div>
-                      </td>
-                      <td className="py-3 px-4">
                         <div className="font-bold text-slate-900">{item.nama}</div>
-                        {item.email && <div className="text-[11px] text-slate-400">{item.email}</div>}
                       </td>
                       <td className="py-3 px-4 font-mono font-bold text-slate-700">
                         {getNIP(item)}
                       </td>
-                      <td className="py-3 px-4 text-slate-600">
-                        {item.instansi || <span className="text-slate-300 italic">-</span>}
-                      </td>
-                      <td className="py-3 px-4">
-                        <a
-                          href={`https://wa.me/${item.no_whatsapp.replace(/^0/, '62')}`}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          onClick={(e) => e.stopPropagation()}
-                          className="inline-flex items-center gap-1 text-emerald-700 hover:text-emerald-800 font-mono hover:underline"
-                        >
-                          <span>{item.no_whatsapp}</span>
-                        </a>
-                      </td>
-                      <td className="py-3 px-4">
-                        <span className="font-mono text-[11px] bg-slate-100 text-slate-700 px-2 py-0.5 rounded border border-slate-200">
-                          {item.qr_token || '-'}
-                        </span>
-                      </td>
                       <td className="py-3 px-4 text-center">
                         <span className="inline-block px-2.5 py-1 rounded-full text-[11px] font-bold bg-blue-100 text-blue-800 border border-blue-200">
-                          ✓ Hadir (Scan)
+                          ✓ Hadir
                         </span>
-                      </td>
-                      <td className="py-3 px-4 text-right">
-                        <button
-                          type="button"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            setSelectedItem(item);
-                          }}
-                          className="px-2.5 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg text-[11px] font-semibold transition cursor-pointer"
-                        >
-                          👁️ Detail
-                        </button>
                       </td>
                     </tr>
                   ))}
                 </tbody>
               </table>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* MODAL DETAIL PESERTA */}
-      {selectedItem && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-xs p-3 sm:p-4">
-          <div className="bg-white rounded-2xl sm:rounded-3xl max-w-lg w-full overflow-hidden shadow-2xl border border-slate-200 flex flex-col max-h-[90vh]">
-            {/* Header */}
-            <div className="p-4 sm:p-5 border-b border-slate-100 flex items-start justify-between gap-3 shrink-0">
-              <div>
-                <span className="inline-block px-2.5 py-0.5 rounded-full text-[10px] font-bold mb-1 bg-blue-100 text-blue-800 border border-blue-200">
-                  ✓ Hadir (Scan)
-                </span>
-                <h3 className="text-base sm:text-lg font-black text-slate-900">{selectedItem.nama}</h3>
-                <p className="text-xs text-slate-400 font-mono">ID: {selectedItem.id}</p>
-              </div>
-              <button
-                onClick={() => setSelectedItem(null)}
-                className="w-8 h-8 rounded-full bg-slate-100 text-slate-400 hover:text-slate-600 flex items-center justify-center text-sm font-bold cursor-pointer"
-              >
-                ✕
-              </button>
-            </div>
-
-            {/* Body */}
-            <div className="p-4 sm:p-6 space-y-4 overflow-y-auto flex-1 text-xs">
-              {/* Info Grid */}
-              <div className="grid grid-cols-2 gap-3 bg-slate-50 p-4 rounded-2xl">
-                <div>
-                  <span className="text-slate-400 font-medium">NIP Peserta:</span>
-                  <p className="font-bold text-[#06305d] font-mono text-sm mt-0.5">{getNIP(selectedItem)}</p>
-                </div>
-                <div>
-                  <span className="text-slate-400 font-medium">WhatsApp:</span>
-                  <p className="font-bold text-slate-800 font-mono mt-0.5">{selectedItem.no_whatsapp}</p>
-                </div>
-                <div>
-                  <span className="text-slate-400 font-medium">Email:</span>
-                  <p className="font-semibold text-slate-700 mt-0.5">{selectedItem.email || '-'}</p>
-                </div>
-                <div>
-                  <span className="text-slate-400 font-medium">Instansi / Asal:</span>
-                  <p className="font-semibold text-slate-700 mt-0.5">{selectedItem.instansi || '-'}</p>
-                </div>
-                <div>
-                  <span className="text-slate-400 font-medium">Token Tiket QR:</span>
-                  <p className="font-mono font-bold text-sky-700 mt-0.5">{selectedItem.qr_token || '-'}</p>
-                </div>
-                <div>
-                  <span className="text-slate-400 font-medium">Waktu Scan Hadir:</span>
-                  <p className="font-semibold text-blue-700 mt-0.5">{formatDateTime(selectedItem.attended_at)}</p>
-                </div>
-              </div>
-
-              {/* Timeline Waktu Aksi */}
-              <div className="p-3.5 bg-slate-50/80 rounded-2xl border border-slate-200/80 space-y-2">
-                <p className="text-[11px] font-bold text-slate-600 uppercase tracking-wider">Riwayat Waktu Kehadiran:</p>
-                <div className="flex justify-between items-center text-slate-600">
-                  <span>1. Waktu Pendaftaran:</span>
-                  <span className="font-semibold">{formatDateTime(selectedItem.created_at)}</span>
-                </div>
-                {selectedItem.confirmed_at && (
-                  <div className="flex justify-between items-center text-emerald-800">
-                    <span>2. Waktu Verifikasi (ACC):</span>
-                    <span className="font-bold">{formatDateTime(selectedItem.confirmed_at)}</span>
-                  </div>
-                )}
-                {selectedItem.attended_at && (
-                  <div className="flex justify-between items-center text-blue-800">
-                    <span>3. Waktu Scan Hadir di Lokasi:</span>
-                    <span className="font-bold">{formatDateTime(selectedItem.attended_at)}</span>
-                  </div>
-                )}
-              </div>
-
-              {/* Foto Bukti Screenshot HSI jika ada */}
-              {selectedItem.screenshot_url && (
-                <div>
-                  <div className="flex items-center justify-between mb-2">
-                    <span className="text-xs font-bold text-slate-700">Bukti Screenshot Akun HSI:</span>
-                    <a
-                      href={`${API_URL}${selectedItem.screenshot_url}`}
-                      target="_blank"
-                      rel="noreferrer"
-                      className="text-[11px] text-[#06305d] hover:underline font-semibold"
-                    >
-                      Buka Gambar Penuh ↗
-                    </a>
-                  </div>
-                  <div className="bg-slate-900 rounded-2xl overflow-hidden border border-slate-200 flex items-center justify-center p-2 min-h-[160px]">
-                    <img
-                      src={`${API_URL}${selectedItem.screenshot_url}`}
-                      alt="Bukti Screenshot"
-                      className="max-h-56 max-w-full rounded-xl object-contain"
-                    />
-                  </div>
-                </div>
-              )}
-            </div>
-
-            {/* Footer */}
-            <div className="p-4 bg-slate-50 border-t border-slate-100 flex gap-2.5 shrink-0">
-              <a
-                href={`https://wa.me/${selectedItem.no_whatsapp.replace(/^0/, '62')}`}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="flex-1 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold text-center shadow-xs transition flex items-center justify-center gap-1.5"
-              >
-                <span>📱</span> Hubungi via WhatsApp
-              </a>
-              <button
-                onClick={() => setSelectedItem(null)}
-                className="px-5 py-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold transition cursor-pointer"
-              >
-                Tutup
-              </button>
             </div>
           </div>
         </div>

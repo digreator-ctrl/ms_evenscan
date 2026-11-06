@@ -17,7 +17,9 @@ CREATE TABLE IF NOT EXISTS pendaftar (
     wa_terkirim INTEGER DEFAULT 0,
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
     confirmed_at DATETIME,
-    attended_at DATETIME
+    attended_at DATETIME,
+    confirmed_by TEXT,
+    wa_sent_by TEXT
 );
 
 -- Tabel admin users
