@@ -214,23 +214,6 @@ _Panitia Muslim Scene Event_`;
     }
   };
 
-  // Bulk action: Kirim WA ke semua yang terkonfirmasi tapi belum terkirim
-  const handleKirimSemuaWA = () => {
-    const belumKirim = pendaftar.filter((p) => p.status === 'dikonfirmasi' && !p.wa_terkirim);
-    if (belumKirim.length === 0) {
-      alert('Semua peserta yang terkonfirmasi sudah pernah dikirimkan WA.');
-      return;
-    }
-
-    if (confirm(`Akan membuka ${belumKirim.length} tab WhatsApp secara berurutan. Lanjutkan?`)) {
-      belumKirim.forEach((p, idx) => {
-        setTimeout(() => {
-          handleKirimWA(p);
-        }, idx * 600);
-      });
-    }
-  };
-
   const filtered = pendaftar.filter((p) => {
     const matchFilter = filter === 'semua' || p.status === filter;
     const nipStr = getNIP(p).toLowerCase();
@@ -256,20 +239,9 @@ _Panitia Muslim Scene Event_`;
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-black text-slate-900 tracking-tight">Verifikasi Pendaftar</h1>
-          <p className="text-sm text-slate-500">Tinjau tangkapan layar bukti peserta dan konfirmasi kehadiran.</p>
-        </div>
-        <div className="flex items-center gap-2">
-          <button
-            type="button"
-            onClick={handleKirimSemuaWA}
-            className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-semibold transition shadow-sm flex items-center gap-1.5 cursor-pointer"
-          >
-            <span>📱</span> Kirim WA Massal
-          </button>
-        </div>
+      <div>
+        <h1 className="text-2xl font-black text-slate-900 tracking-tight">Verifikasi Pendaftar</h1>
+        <p className="text-sm text-slate-500">Tinjau tangkapan layar bukti peserta dan konfirmasi kehadiran.</p>
       </div>
 
       {/* SEARCH & FILTER BAR SEJAJAR */}
