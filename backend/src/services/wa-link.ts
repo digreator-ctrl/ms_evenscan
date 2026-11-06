@@ -52,9 +52,10 @@ Pendaftaran Anda untuk acara *${namaAcara}* telah *BERHASIL DIKONFIRMASI* ✅
 Silakan akses & unduh QR code kehadiran Anda melalui tautan berikut:
 🔗 https://ms-evenscan-peserta.pages.dev/status
 
+*KODE AKSES:*
 *${kodeAkses}*
 
-_*Masukkan kode akses pada halaman tersebut untuk melihat & download QR code*_
+_Masukkan *KODE AKSES* pada halaman tersebut untuk melihat & download QR code_
 
 Mohon simpan dan tunjukkan QR code ini kepada panitia di meja registrasi pada hari acara.
 
