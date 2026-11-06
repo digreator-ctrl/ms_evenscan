@@ -280,50 +280,50 @@ _Panitia Muslim Scene Event_`;
     }
 
     return (
-      <div className="space-y-6 animate-in fade-in duration-150">
-        {/* HEADER HALAMAN DETAIL: Back button, Judul & Status, dan Button Hapus Data sejajar */}
-        <div className="bg-white rounded-2xl sm:rounded-3xl p-4 sm:p-6 border border-slate-200/90 shadow-xs">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-            {/* Bagian Kiri: Tombol Back + Teks Detail Peserta & Berkas */}
-            <div className="flex items-center gap-3 sm:gap-4 min-w-0">
-              <button
-                type="button"
-                onClick={() => setSearchParams({})}
-                className="p-2 sm:px-3 sm:py-2.5 bg-slate-50 hover:bg-slate-100 active:scale-95 text-slate-700 border border-slate-200 rounded-xl text-xs font-bold transition flex items-center gap-1.5 shadow-xs cursor-pointer shrink-0"
-                title="Kembali ke Halaman Verifikasi"
-              >
-                <svg className="w-4 h-4 text-slate-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.4" d="M10 19l-7-7m0 0l7-7m-7 7h18" />
-                </svg>
-                <span className="hidden sm:inline">Kembali</span>
-              </button>
+      <div className="space-y-5 animate-in fade-in duration-150">
+        {/* 1. BUTTON BACK: TERPISAH DI BAGIAN PALING ATAS SENDIRI (DI LUAR CARD) */}
+        <div>
+          <button
+            type="button"
+            onClick={() => setSearchParams({})}
+            className="inline-flex items-center gap-2 px-3.5 py-2 bg-white hover:bg-slate-50 active:scale-95 text-slate-700 border border-slate-200/90 rounded-xl text-xs font-bold transition shadow-xs cursor-pointer"
+            title="Kembali ke Halaman Verifikasi"
+          >
+            <svg className="w-4 h-4 text-slate-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.4" d="M10 19l-7-7m0 0l7-7m-7 7h18" />
+            </svg>
+            <span>Kembali ke Verifikasi</span>
+          </button>
+        </div>
 
-              <div className="min-w-0">
-                <div className="flex items-center flex-wrap gap-2">
-                  <h1 className="text-lg sm:text-2xl font-black text-slate-900 tracking-tight truncate">
-                    Detail Peserta & Berkas
-                  </h1>
-                  <span
-                    className={`inline-block px-2.5 py-0.5 rounded-full text-[10px] sm:text-[11px] font-bold uppercase ${statusBadge(
-                      selectedPendaftar.status
-                    )}`}
-                  >
-                    {selectedPendaftar.status}
-                  </span>
-                </div>
-                <p className="text-xs text-slate-400 font-mono mt-0.5 truncate">
-                  ID: {selectedPendaftar.id} • Terdaftar: {formatTanggal(selectedPendaftar.created_at)}
-                </p>
+        {/* 2. CARD HEADER: Detail Peserta & Berkas + Button Hapus Data di kanan sejajar */}
+        <div className="bg-white rounded-2xl sm:rounded-3xl p-4 sm:p-5 border border-slate-200/90 shadow-xs">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <div>
+              <div className="flex items-center flex-wrap gap-2">
+                <h1 className="text-lg sm:text-2xl font-black text-slate-900 tracking-tight">
+                  Detail Peserta & Berkas
+                </h1>
+                <span
+                  className={`inline-block px-2.5 py-0.5 rounded-full text-[10px] sm:text-[11px] font-bold uppercase ${statusBadge(
+                    selectedPendaftar.status
+                  )}`}
+                >
+                  {selectedPendaftar.status}
+                </span>
               </div>
+              <p className="text-xs text-slate-400 font-mono mt-0.5">
+                ID: {selectedPendaftar.id} • Terdaftar: {formatTanggal(selectedPendaftar.created_at)}
+              </p>
             </div>
 
-            {/* Bagian Kanan: Button Hapus Data Sejajar dengan Teks Detail */}
+            {/* Button Hapus Data Sejajar dengan Teks Judul */}
             <div className="flex items-center justify-end shrink-0">
               <button
                 type="button"
                 disabled={actionLoading === selectedPendaftar.id}
                 onClick={() => handleHapus(selectedPendaftar.id, selectedPendaftar.nama)}
-                className="w-full sm:w-auto px-4 py-2.5 bg-rose-50 hover:bg-rose-100 active:scale-95 text-rose-700 border border-rose-200 rounded-xl text-xs font-bold transition disabled:opacity-50 cursor-pointer flex items-center justify-center gap-2 shadow-xs"
+                className="w-full sm:w-auto px-4 py-2 bg-rose-50 hover:bg-rose-100 active:scale-95 text-rose-700 border border-rose-200 rounded-xl text-xs font-bold transition disabled:opacity-50 cursor-pointer flex items-center justify-center gap-1.5 shadow-xs"
                 title="Hapus data peserta ini secara permanen"
               >
                 <svg className="w-4 h-4 text-rose-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -340,34 +340,33 @@ _Panitia Muslim Scene Event_`;
           </div>
         </div>
 
-        {/* GRID UTAMA: 2 Kolom Penuh (Data Peserta & Viewer Berkas) */}
+        {/* 3. GRID UTAMA: Kolom Kiri = Data Peserta (1 card simple), Kolom Kanan = Bukti Screenshot */}
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
-          {/* KOLOM KIRI: Informasi Data Diri Peserta & Kontrol Aksi (lg:col-span-7) */}
-          <div className="lg:col-span-7 space-y-6">
-            {/* Card Informasi Profil Peserta */}
-            <div className="bg-white rounded-2xl sm:rounded-3xl p-5 sm:p-6 border border-slate-200/90 shadow-xs space-y-5">
-              <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+          {/* KOLOM KIRI: Informasi Formulir Pendaftaran (1 Card Simple, Tidak Makan Tempat, Tanpa Teks HSI EvenScan) */}
+          <div className="lg:col-span-7">
+            <div className="bg-white rounded-2xl sm:rounded-3xl p-5 sm:p-6 border border-slate-200/90 shadow-xs space-y-4">
+              <div className="border-b border-slate-100 pb-3">
                 <h2 className="text-sm font-black text-slate-900 flex items-center gap-2">
                   <span className="w-2 h-2 rounded-full bg-[#06305d]"></span>
                   <span>Informasi Formulir Pendaftaran</span>
                 </h2>
-                <span className="text-[11px] font-mono text-slate-400">HSI EvenScan</span>
               </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs">
-                <div className="bg-slate-50/80 p-3.5 rounded-2xl border border-slate-100">
+              {/* Data Peserta Tersusun Ringkas & Rapi dalam 1 Bagian */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-3.5 text-xs">
+                <div>
                   <span className="text-slate-400 font-semibold block text-[11px]">Nama Lengkap</span>
                   <p className="font-bold text-slate-900 text-sm mt-0.5">{selectedPendaftar.nama}</p>
                 </div>
 
-                <div className="bg-slate-50/80 p-3.5 rounded-2xl border border-slate-100">
+                <div>
                   <span className="text-slate-400 font-semibold block text-[11px]">Nomor Induk Peserta (NIP)</span>
                   <p className="font-mono font-bold text-[#06305d] text-sm mt-0.5">{getNIP(selectedPendaftar)}</p>
                 </div>
 
-                <div className="bg-slate-50/80 p-3.5 rounded-2xl border border-slate-100">
+                <div>
                   <span className="text-slate-400 font-semibold block text-[11px]">Nomor WhatsApp</span>
-                  <div className="flex items-center justify-between mt-0.5">
+                  <div className="flex items-center gap-2 mt-0.5">
                     <p className="font-mono font-bold text-slate-800 text-sm">{selectedPendaftar.no_whatsapp}</p>
                     <a
                       href={`https://wa.me/${selectedPendaftar.no_whatsapp.replace(/\D/g, '')}`}
@@ -375,86 +374,80 @@ _Panitia Muslim Scene Event_`;
                       rel="noreferrer"
                       className="text-[10px] text-emerald-600 hover:text-emerald-700 font-bold hover:underline"
                     >
-                      Buka Chat ↗
+                      Chat WA ↗
                     </a>
                   </div>
                 </div>
 
-                <div className="bg-slate-50/80 p-3.5 rounded-2xl border border-slate-100">
+                <div>
                   <span className="text-slate-400 font-semibold block text-[11px]">Alamat Email</span>
-                  <p className="font-semibold text-slate-700 text-xs mt-0.5 truncate">
-                    {selectedPendaftar.email || '-'}
-                  </p>
+                  <p className="font-semibold text-slate-700 text-xs mt-0.5 truncate">{selectedPendaftar.email || '-'}</p>
                 </div>
 
                 {selectedPendaftar.jenis_kelamin && (
-                  <div className="bg-slate-50/80 p-3.5 rounded-2xl border border-slate-100">
+                  <div>
                     <span className="text-slate-400 font-semibold block text-[11px]">Jenis Kelamin</span>
-                    <p className="font-bold text-slate-800 capitalize mt-0.5">
-                      {selectedPendaftar.jenis_kelamin}
-                    </p>
+                    <p className="font-bold text-slate-800 capitalize mt-0.5">{selectedPendaftar.jenis_kelamin}</p>
                   </div>
                 )}
 
                 {selectedPendaftar.domisili && (
-                  <div className="bg-slate-50/80 p-3.5 rounded-2xl border border-slate-100">
+                  <div>
                     <span className="text-slate-400 font-semibold block text-[11px]">Domisili</span>
                     <p className="font-bold text-slate-800 mt-0.5">{selectedPendaftar.domisili}</p>
                   </div>
                 )}
 
                 {selectedPendaftar.instansi && (
-                  <div className="sm:col-span-2 bg-slate-50/80 p-3.5 rounded-2xl border border-slate-100">
+                  <div className="sm:col-span-2">
                     <span className="text-slate-400 font-semibold block text-[11px]">Instansi / Wilayah Asal</span>
                     <p className="font-bold text-slate-800 mt-0.5">{selectedPendaftar.instansi}</p>
                   </div>
                 )}
 
                 {selectedPendaftar.alasan && (
-                  <div className="sm:col-span-2 bg-slate-50/80 p-3.5 rounded-2xl border border-slate-100">
+                  <div className="sm:col-span-2">
                     <span className="text-slate-400 font-semibold block text-[11px]">Alasan / Motivasi Kehadiran</span>
-                    <p className="text-slate-700 mt-1 italic leading-relaxed">
-                      "{selectedPendaftar.alasan}"
-                    </p>
+                    <p className="text-slate-700 mt-0.5 italic leading-relaxed">"{selectedPendaftar.alasan}"</p>
                   </div>
                 )}
 
-                <div className="bg-slate-50/80 p-3.5 rounded-2xl border border-slate-100">
+                <div>
                   <span className="text-slate-400 font-semibold block text-[11px]">Waktu Pendaftaran</span>
                   <p className="font-medium text-slate-700 mt-0.5">{formatTanggal(selectedPendaftar.created_at)}</p>
                 </div>
 
-                <div className="bg-slate-50/80 p-3.5 rounded-2xl border border-slate-100">
-                  <span className="text-slate-400 font-semibold block text-[11px]">Waktu Verifikasi (ACC)</span>
-                  <p className="font-medium text-slate-700 mt-0.5">{formatTanggal(selectedPendaftar.confirmed_at)}</p>
-                </div>
+                {selectedPendaftar.confirmed_at && (
+                  <div>
+                    <span className="text-slate-400 font-semibold block text-[11px]">Waktu Verifikasi (ACC)</span>
+                    <p className="font-medium text-slate-700 mt-0.5">{formatTanggal(selectedPendaftar.confirmed_at)}</p>
+                  </div>
+                )}
               </div>
-            </div>
 
-            {/* Card Status & Feedback Panitia */}
-            {selectedPendaftar.status === 'ditolak' && selectedPendaftar.alasan_tolak && (
-              <div className="bg-rose-50/90 border border-rose-200 p-4 sm:p-5 rounded-2xl sm:rounded-3xl">
-                <div className="flex items-center gap-2 text-rose-800 font-bold text-xs mb-1">
-                  <span>⚠️</span>
-                  <span>Alasan Penolakan Berkas:</span>
+              {/* Status Alert di dalam Card jika perlu informasi khusus */}
+              {selectedPendaftar.status === 'ditolak' && selectedPendaftar.alasan_tolak && (
+                <div className="bg-rose-50/90 border border-rose-200 p-3.5 rounded-2xl mt-2">
+                  <div className="flex items-center gap-1.5 text-rose-800 font-bold text-xs mb-0.5">
+                    <span>⚠️</span>
+                    <span>Alasan Penolakan Berkas:</span>
+                  </div>
+                  <p className="text-xs text-rose-700 leading-relaxed font-medium">{selectedPendaftar.alasan_tolak}</p>
                 </div>
-                <p className="text-xs text-rose-700 leading-relaxed font-medium">{selectedPendaftar.alasan_tolak}</p>
-              </div>
-            )}
+              )}
 
-            {selectedPendaftar.status === 'dikonfirmasi' && (
-              <div className="bg-emerald-50/90 border border-emerald-200 p-4 sm:p-5 rounded-2xl sm:rounded-3xl flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs">
-                <div>
-                  <span className="text-emerald-800 font-bold block">Status Notifikasi WhatsApp:</span>
-                  <p className="text-emerald-700 mt-0.5 font-medium">
-                    {selectedPendaftar.wa_terkirim
-                      ? '✓ Pesan tiket dan petunjuk kehadiran telah dikirim ke WhatsApp peserta.'
-                      : '⏳ Belum dikirimkan. Silakan klik tombol Kirim WA di bawah.'}
-                  </p>
-                </div>
-                <div className="shrink-0">
+              {selectedPendaftar.status === 'dikonfirmasi' && (
+                <div className="bg-emerald-50/90 border border-emerald-200 p-3.5 rounded-2xl mt-2 flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-xs">
+                  <div>
+                    <span className="text-emerald-800 font-bold block">Status WhatsApp:</span>
+                    <p className="text-emerald-700 mt-0.5 font-medium">
+                      {selectedPendaftar.wa_terkirim
+                        ? '✓ Pesan tiket telah dikirimkan ke WhatsApp peserta.'
+                        : '⏳ Belum dikirimkan. Gunakan tombol Kirim Tiket di bawah.'}
+                    </p>
+                  </div>
                   <span
-                    className={`inline-block px-3 py-1 rounded-full text-[11px] font-bold ${
+                    className={`inline-block px-2.5 py-0.5 rounded-full text-[10px] font-bold shrink-0 self-start sm:self-auto ${
                       selectedPendaftar.wa_terkirim
                         ? 'bg-emerald-100 text-emerald-800 border border-emerald-300'
                         : 'bg-amber-100 text-amber-800 border border-amber-300'
@@ -463,87 +456,29 @@ _Panitia Muslim Scene Event_`;
                     {selectedPendaftar.wa_terkirim ? 'Sudah Terkirim' : 'Belum Terkirim'}
                   </span>
                 </div>
-              </div>
-            )}
+              )}
 
-            {selectedPendaftar.status === 'hadir' && (
-              <div className="bg-blue-50/90 border border-blue-200 p-4 sm:p-5 rounded-2xl sm:rounded-3xl text-xs">
-                <span className="text-blue-900 font-bold flex items-center gap-1.5">
-                  <span>🎉</span>
-                  <span>Peserta Telah Hadir di Lokasi</span>
-                </span>
-                <p className="text-blue-700 mt-0.5">
-                  Presensi terverifikasi pada: {formatTanggal(selectedPendaftar.attended_at)}
-                </p>
-              </div>
-            )}
-
-            {/* Card Aksi Panitia */}
-            <div className="bg-white rounded-2xl sm:rounded-3xl p-5 sm:p-6 border border-slate-200/90 shadow-xs space-y-4">
-              <h2 className="text-sm font-black text-slate-900 flex items-center gap-2">
-                <span className="w-2 h-2 rounded-full bg-emerald-600"></span>
-                <span>Tindakan Verifikasi Panitia</span>
-              </h2>
-
-              <div className="flex flex-wrap items-center gap-3">
-                {selectedPendaftar.status === 'menunggu' && (
-                  <>
-                    <button
-                      type="button"
-                      disabled={actionLoading === selectedPendaftar.id}
-                      onClick={() => handleKonfirmasi(selectedPendaftar.id)}
-                      className="flex-1 min-w-[160px] px-5 py-3 bg-emerald-600 hover:bg-emerald-700 active:scale-98 text-white rounded-xl text-xs font-bold transition shadow-xs disabled:opacity-50 cursor-pointer flex items-center justify-center gap-2"
-                    >
-                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M5 13l4 4L19 7" />
-                      </svg>
-                      <span>{actionLoading === selectedPendaftar.id ? 'Memproses...' : 'Setujui Berkas (ACC)'}</span>
-                    </button>
-
-                    <button
-                      type="button"
-                      disabled={actionLoading === selectedPendaftar.id}
-                      onClick={() => handleTolak(selectedPendaftar.id)}
-                      className="px-5 py-3 bg-rose-50 hover:bg-rose-100 active:scale-98 text-rose-700 border border-rose-200 rounded-xl text-xs font-bold transition disabled:opacity-50 cursor-pointer flex items-center justify-center gap-1.5"
-                    >
-                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
-                      </svg>
-                      <span>Tolak Berkas</span>
-                    </button>
-                  </>
-                )}
-
-                {selectedPendaftar.status === 'dikonfirmasi' && (
-                  <button
-                    type="button"
-                    onClick={() => handleKirimWA(selectedPendaftar)}
-                    className="flex-1 min-w-[200px] px-5 py-3 bg-emerald-600 hover:bg-emerald-700 active:scale-98 text-white rounded-xl text-xs font-bold transition shadow-xs flex items-center justify-center gap-2 cursor-pointer"
-                  >
-                    <span>📱</span>
-                    <span>{selectedPendaftar.wa_terkirim ? 'Kirim Ulang Tiket WhatsApp' : 'Kirim Tiket WhatsApp'}</span>
-                  </button>
-                )}
-
-                <button
-                  type="button"
-                  onClick={() => setSearchParams({})}
-                  className="px-4 py-3 bg-slate-100 hover:bg-slate-200 active:scale-98 text-slate-700 rounded-xl text-xs font-bold transition cursor-pointer"
-                >
-                  Kembali ke Daftar
-                </button>
-              </div>
+              {selectedPendaftar.status === 'hadir' && (
+                <div className="bg-blue-50/90 border border-blue-200 p-3.5 rounded-2xl mt-2 text-xs">
+                  <span className="text-blue-900 font-bold flex items-center gap-1.5">
+                    <span>🎉</span>
+                    <span>Peserta Telah Hadir di Lokasi Acara</span>
+                  </span>
+                  <p className="text-blue-700 mt-0.5">
+                    Presensi terverifikasi pada: {formatTanggal(selectedPendaftar.attended_at)}
+                  </p>
+                </div>
+              )}
             </div>
           </div>
 
-          {/* KOLOM KANAN: Viewer Berkas Screenshot & Tiket QR (lg:col-span-5) */}
-          <div className="lg:col-span-5 space-y-6">
-            {/* Card Viewer Bukti Screenshot Akun HSI */}
+          {/* KOLOM KANAN: Viewer Bukti Screenshot Akun HSI (Tanpa Card QR Code) */}
+          <div className="lg:col-span-5">
             <div className="bg-white rounded-2xl sm:rounded-3xl p-5 sm:p-6 border border-slate-200/90 shadow-xs space-y-3">
               <div className="flex items-center justify-between border-b border-slate-100 pb-3">
                 <div>
                   <h2 className="text-sm font-black text-slate-900">Bukti Screenshot Akun HSI</h2>
-                  <p className="text-[11px] text-slate-400 mt-0.5">Verifikasi kecocokan NIP & nama peserta</p>
+                  <p className="text-[11px] text-slate-400 mt-0.5">Verifikasi kecocokan NIP & nama</p>
                 </div>
                 <a
                   href={`${API_URL}${selectedPendaftar.screenshot_url}`}
@@ -557,11 +492,11 @@ _Panitia Muslim Scene Event_`;
               </div>
 
               {/* Kontainer Gambar Penuh & Responsive */}
-              <div className="bg-slate-900 rounded-2xl overflow-hidden border border-slate-800 flex items-center justify-center p-2 min-h-[320px] max-h-[580px]">
+              <div className="bg-slate-900 rounded-2xl overflow-hidden border border-slate-800 flex items-center justify-center p-2 min-h-[280px] max-h-[460px]">
                 <img
                   src={`${API_URL}${selectedPendaftar.screenshot_url}`}
                   alt="Bukti Screenshot HSI"
-                  className="max-h-[540px] max-w-full rounded-xl object-contain"
+                  className="max-h-[430px] max-w-full rounded-xl object-contain"
                   onError={(e) => {
                     (e.target as HTMLElement).style.display = 'none';
                     const parent = (e.target as HTMLElement).parentElement;
@@ -577,44 +512,68 @@ _Panitia Muslim Scene Event_`;
                 💡 Periksa tangkapan layar di atas dengan saksama untuk memastikan keaslian akun HSI peserta.
               </p>
             </div>
+          </div>
+        </div>
 
-            {/* Card Tiket QR Peserta (Jika sudah ACC atau Hadir) */}
-            {(selectedPendaftar.status === 'dikonfirmasi' || selectedPendaftar.status === 'hadir') &&
-              selectedPendaftar.qr_token && (
-                <div className="bg-white rounded-2xl sm:rounded-3xl p-5 sm:p-6 border border-slate-200/90 shadow-xs space-y-4 text-center">
-                  <div className="border-b border-slate-100 pb-3 text-left">
-                    <h2 className="text-sm font-black text-slate-900">QR Code Tiket Peserta</h2>
-                    <p className="text-[11px] text-slate-400 mt-0.5">Tiket presensi resmi yang diterbitkan</p>
-                  </div>
+        {/* 4. TINDAKAN VERIFIKASI PANITIA: DIPINDAHKAN KE PALING BAWAH */}
+        <div className="bg-white rounded-2xl sm:rounded-3xl p-5 sm:p-6 border border-slate-200/90 shadow-xs space-y-4">
+          <div className="border-b border-slate-100 pb-3">
+            <h2 className="text-sm font-black text-slate-900 flex items-center gap-2">
+              <span className="w-2 h-2 rounded-full bg-emerald-600"></span>
+              <span>Tindakan Verifikasi Panitia</span>
+            </h2>
+            <p className="text-xs text-slate-400 mt-0.5">
+              Pilih tindakan yang sesuai setelah meninjau data formulir dan bukti tangkapan layar akun.
+            </p>
+          </div>
 
-                  <div className="flex flex-col items-center justify-center p-3 bg-slate-50 rounded-2xl border border-slate-100">
-                    <img
-                      src={`${API_URL}/api/peserta/qr/${selectedPendaftar.qr_token}`}
-                      alt="QR Code Tiket"
-                      className="w-44 h-44 object-contain rounded-xl bg-white p-2 shadow-xs border border-slate-200"
-                    />
-                    <div className="mt-3">
-                      <span className="text-[10px] uppercase font-bold text-slate-400 block tracking-wider">
-                        Token QR
-                      </span>
-                      <span className="font-mono text-xs font-black text-[#06305d] tracking-wide">
-                        {selectedPendaftar.qr_token}
-                      </span>
-                    </div>
-                  </div>
+          <div className="flex flex-wrap items-center gap-3">
+            {selectedPendaftar.status === 'menunggu' && (
+              <>
+                <button
+                  type="button"
+                  disabled={actionLoading === selectedPendaftar.id}
+                  onClick={() => handleKonfirmasi(selectedPendaftar.id)}
+                  className="flex-1 min-w-[160px] px-5 py-3 bg-emerald-600 hover:bg-emerald-700 active:scale-98 text-white rounded-xl text-xs font-bold transition shadow-xs disabled:opacity-50 cursor-pointer flex items-center justify-center gap-2"
+                >
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M5 13l4 4L19 7" />
+                  </svg>
+                  <span>{actionLoading === selectedPendaftar.id ? 'Memproses...' : 'Setujui Berkas (ACC)'}</span>
+                </button>
 
-                  <a
-                    href={`${API_URL}/api/peserta/qr/${selectedPendaftar.qr_token}`}
-                    download={`QR_EvenScan_${selectedPendaftar.nama.replace(/\s+/g, '_')}.png`}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="w-full inline-flex items-center justify-center gap-1.5 px-4 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-bold transition"
-                  >
-                    <span>💾</span>
-                    <span>Unduh Gambar QR Code</span>
-                  </a>
-                </div>
-              )}
+                <button
+                  type="button"
+                  disabled={actionLoading === selectedPendaftar.id}
+                  onClick={() => handleTolak(selectedPendaftar.id)}
+                  className="px-5 py-3 bg-rose-50 hover:bg-rose-100 active:scale-98 text-rose-700 border border-rose-200 rounded-xl text-xs font-bold transition disabled:opacity-50 cursor-pointer flex items-center justify-center gap-1.5"
+                >
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                  <span>Tolak Berkas</span>
+                </button>
+              </>
+            )}
+
+            {selectedPendaftar.status === 'dikonfirmasi' && (
+              <button
+                type="button"
+                onClick={() => handleKirimWA(selectedPendaftar)}
+                className="flex-1 min-w-[200px] px-5 py-3 bg-emerald-600 hover:bg-emerald-700 active:scale-98 text-white rounded-xl text-xs font-bold transition shadow-xs flex items-center justify-center gap-2 cursor-pointer"
+              >
+                <span>📱</span>
+                <span>{selectedPendaftar.wa_terkirim ? 'Kirim Ulang Tiket WhatsApp' : 'Kirim Tiket WhatsApp'}</span>
+              </button>
+            )}
+
+            <button
+              type="button"
+              onClick={() => setSearchParams({})}
+              className="px-5 py-3 bg-slate-100 hover:bg-slate-200 active:scale-98 text-slate-700 rounded-xl text-xs font-bold transition cursor-pointer"
+            >
+              Kembali ke Daftar
+            </button>
           </div>
         </div>
       </div>
